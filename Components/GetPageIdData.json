@@ -1,0 +1,315 @@
+{
+  "rd": [
+    {
+      "stat": 1,
+      "stat_msg": "Successfully Get ReportId",
+      "ReportId": 1,
+      "SpNumber": 35,
+      "ReportName": "Job Test Test Report",
+      "IsLargeDataReport": false,
+      "LargeDataCount": 10,
+      "MasterDataList": "CustomerName{#}Customer Name,Job_customercode{#}C. code,mastermanagement_categoryid{#}",
+      "SpliterFirstPanel": "Job_customercode",
+      "SpliterFirstPanelFilter": "",  
+      "SpliterSecondPanel": "CustomerName",
+      "SpliterSecondPanelSecondOption": "",
+      "DateMonthRestriction": "5",
+      "SpliterFirstPanelAll": true,
+      "SpliterSecondPanelAll": true,
+      "SpliterReportAllDataButton": true,
+      "ServerSideDateWiseFilter": true,
+      "IsSpliterReport": true,
+      "chartViewData": "[{\"AreaChart\":false,\"xAxisColumn\":\"\",\"yAxiosColumn\":\"\"},{\"PieChart\":false,\"PieDataColum\":\"\"},{\"BarChart\":false,\"xAxisColumn\":\"\",\"yAxiosColumn\":\"\"},{\"BarChart2\":false,\"xAxisColumn\":\"\",\"yAxiosColumn\":\"\"}]",
+      "ImageDataArray": "[]",
+      "deafultShowAllData": false,
+      "ReportIframeButton": false,
+      "PrintDataArray": "[]",
+      "IsMultiTab": false,
+      "PrintMasterName": "",
+      "IsFormulaBasedSummary": true,
+      "SummaryFormulaArray": "[{\"id\":\"64\",\"formula\":\"JobNo + HSN_No 10\",\"summurylabe\":\"add one \",\"summuryunit\":\"gm\",\"summurydecimal\":0,\"order\":\"\"},{\"id\":\"65\",\"formula\":\"\",\"summurylabe\":\"dsss\",\"summuryunit\":\"\",\"summurydecimal\":0,\"order\":\"\"}]",
+      "otherSpliterSideData1": "{\"firstSlideFirstData\":[{\"selectedField\":\"HSN_No\",\"title\":\"First\",\"unit\":\"gm\",\"formula\":\"\",\"decimal\":\"0\"}]}",
+      "otherSpliterSideData2": "{}"
+    }
+  ],
+  "rd1": [
+    {
+      "ReportId": 1,
+      "DateFrameId": 1,
+      "IsOn": true,
+      "DateFrame": "Today"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 2,
+      "IsOn": true,
+      "DateFrame": "Yesterday"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 3,
+      "IsOn": true,
+      "DateFrame": "This Week"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 4,
+      "IsOn": true,
+      "DateFrame": "Last 7 Days"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 5,
+      "IsOn": true,
+      "DateFrame": "Last Week"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 6,
+      "IsOn": true,
+      "DateFrame": "This Month"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 7,
+      "IsOn": true,
+      "DateFrame": "Last Month"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 8,
+      "IsOn": true,
+      "DateFrame": "Last 3 Month"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 9,
+      "IsOn": false,
+      "DateFrame": "Last 6 Month"
+    },
+    {
+      "ReportId": 1,
+      "DateFrameId": 10,
+      "IsOn": false,
+      "DateFrame": "1 Year"
+    }
+  ],
+  "rd2": [
+    {
+      "id": 1,
+      "code": "Normal",
+      "name": "Normal",
+      "colorcode": "#A4EAB9",
+      "description": "NA",
+      "displayorder": 10,
+      "fontcolorcode": "#131111"
+    },
+    {
+      "id": 2,
+      "code": "High",
+      "name": "High",
+      "colorcode": "#FBA7A7",
+      "description": "NA",
+      "displayorder": 20,
+      "fontcolorcode": "#030202"
+    },
+    {
+      "id": 3,
+      "code": "Any Time",
+      "name": "Any Time",
+      "colorcode": "#F6CCFF",
+      "description": "Rv",
+      "displayorder": 1,
+      "fontcolorcode": "#000000"
+    },
+    {
+      "id": 4,
+      "code": "Do not use",
+      "name": "Do not use",
+      "colorcode": "#C6D1F0",
+      "description": "NA",
+      "displayorder": 0,
+      "fontcolorcode": "#6B5252"
+    }
+  ],
+  "rd3": [
+    {
+      "id": 131,
+      "Currencycode": "INR",
+      "CurrencyRate": 1,
+      "IsDefault": 1
+    },
+    {
+      "id": 154,
+      "Currencycode": "$",
+      "CurrencyRate": 87.87,
+      "IsDefault": null
+    },
+    {
+      "id": 135,
+      "Currencycode": "AED",
+      "CurrencyRate": 17.69,
+      "IsDefault": null
+    },
+    {
+      "id": 151,
+      "Currencycode": "AOA",
+      "CurrencyRate": 6.99,
+      "IsDefault": null
+    },
+    {
+      "id": 132,
+      "Currencycode": "AUD",
+      "CurrencyRate": 49.84,
+      "IsDefault": null
+    },
+    {
+      "id": 156,
+      "Currencycode": "BD",
+      "CurrencyRate": 1.2,
+      "IsDefault": null
+    },
+    {
+      "id": 134,
+      "Currencycode": "CAD",
+      "CurrencyRate": 50.95,
+      "IsDefault": null
+    },
+    {
+      "id": 136,
+      "Currencycode": "EURO",
+      "CurrencyRate": 75.38,
+      "IsDefault": null
+    },
+    {
+      "id": 137,
+      "Currencycode": "GBP",
+      "CurrencyRate": 85.31,
+      "IsDefault": null
+    },
+    {
+      "id": 147,
+      "Currencycode": "HKD",
+      "CurrencyRate": 10,
+      "IsDefault": null
+    },
+    {
+      "id": 158,
+      "Currencycode": "ID",
+      "CurrencyRate": 0.001,
+      "IsDefault": null
+    },
+    {
+      "id": 157,
+      "Currencycode": "pu",
+      "CurrencyRate": 0.51,
+      "IsDefault": null
+    },
+    {
+      "id": 145,
+      "Currencycode": "QA1",
+      "CurrencyRate": 20,
+      "IsDefault": null
+    },
+    {
+      "id": 143,
+      "Currencycode": "S1",
+      "CurrencyRate": 100.5556,
+      "IsDefault": null
+    },
+    {
+      "id": 133,
+      "Currencycode": "USD",
+      "CurrencyRate": 7.8,
+      "IsDefault": null
+    },
+    {
+      "id": 159,
+      "Currencycode": "USDollar",
+      "CurrencyRate": 89.6,
+      "IsDefault": null
+    },
+    {
+      "id": 142,
+      "Currencycode": "Won-A",
+      "CurrencyRate": 13,
+      "IsDefault": null
+    },
+    {
+      "id": 149,
+      "Currencycode": "yen",
+      "CurrencyRate": 75.58,
+      "IsDefault": null
+    }
+  ],
+  "rd4": [
+    {
+      "PrintMaster": "Alteration",
+      "DistinctPrintNamesJSON": "[{\"id\":356,\"printname\":\"Print\"}]"
+    },
+    {
+      "PrintMaster": "Estimate",
+      "DistinctPrintNamesJSON": "[{\"id\":103,\"printname\":\"Packing List\"},{\"id\":107,\"printname\":\"Jewellery Tax Invoice\"},{\"id\":117,\"printname\":\"Detail Print4\"},{\"id\":153,\"printname\":\"Retail Print 3\"},{\"id\":189,\"printname\":\"Detail Print 7\"},{\"id\":199,\"printname\":\"Packing List 1\"},{\"id\":218,\"printname\":\"Detail Print 9\"},{\"id\":219,\"printname\":\"Packing List 4\"},{\"id\":221,\"printname\":\"Detail Print 5\"},{\"id\":245,\"printname\":\"Detail Print 11\"},{\"id\":250,\"printname\":\"Summary 12\"},{\"id\":253,\"printname\":\"Summary 11\"},{\"id\":268,\"printname\":\"Export Print\"},{\"id\":278,\"printname\":\"Print 1\"},{\"id\":287,\"printname\":\"Packing List 7\"},{\"id\":288,\"printname\":\"Packing List 7Group\"},{\"id\":299,\"printname\":\"Estimate Print\"},{\"id\":302,\"printname\":\"Detail Print 12\"},{\"id\":303,\"printname\":\"Sale Order\"},{\"id\":318,\"printname\":\"Print 2\"},{\"id\":323,\"printname\":\"Detail Print3\"},{\"id\":331,\"printname\":\"Designset Packinglist\"},{\"id\":339,\"printname\":\"Jewellery Tax Summary C\"},{\"id\":341,\"printname\":\"Estimate Print K\"},{\"id\":346,\"printname\":\"Packing List 7Group S\"},{\"id\":350,\"printname\":\"Packing List 7D Group\"},{\"id\":354,\"printname\":\"Detail Print S\"},{\"id\":361,\"printname\":\"Packing List 1 S\"},{\"id\":363,\"printname\":\"Retail Invoice Print S\"},{\"id\":374,\"printname\":\"Jewellery Tax Invoice 2\"}]"
+    },
+    {
+      "PrintMaster": "FG Purchase",
+      "DistinctPrintNamesJSON": "[{\"id\":12,\"printname\":\"Detail Print\"},{\"id\":28,\"printname\":\"Item Wise Print\"},{\"id\":88,\"printname\":\"Retail Print\"},{\"id\":100,\"printname\":\"Jewellery Invoice 2\"},{\"id\":138,\"printname\":\"Summary 4\"},{\"id\":328,\"printname\":\"Tax Invoice 5\"},{\"id\":366,\"printname\":\"Packing List 7 D Group\"}]"
+    },
+    {
+      "PrintMaster": "FG Purchase Return",
+      "DistinctPrintNamesJSON": "[{\"id\":15,\"printname\":\"Detail Print\"},{\"id\":16,\"printname\":\"Summary Print\"},{\"id\":29,\"printname\":\"Item Wise Print\"},{\"id\":101,\"printname\":\"Jewellery Invoice 2\"}]"
+    },
+    {
+      "PrintMaster": "Issue Material",
+      "DistinctPrintNamesJSON": "[{\"id\":369,\"printname\":\"Print\"}]"
+    },
+    {
+      "PrintMaster": "Manufacturer PO",
+      "DistinctPrintNamesJSON": "[{\"id\":337,\"printname\":\"Outsource Print AM\"},{\"id\":343,\"printname\":\"Outsource Print A\"},{\"id\":348,\"printname\":\"Outsource Job Print\"},{\"id\":352,\"printname\":\"Outsource Job Print 2\"}]"
+    },
+    {
+      "PrintMaster": "Material Sale",
+      "DistinctPrintNamesJSON": "[{\"id\":53,\"printname\":\"Invoice Print\"},{\"id\":59,\"printname\":\"Detail Print\"},{\"id\":222,\"printname\":\"Invoice Print3\"},{\"id\":325,\"printname\":\"Tax Invoice A\"},{\"id\":381,\"printname\":\"Invoice Print S\"}]"
+    },
+    {
+      "PrintMaster": "Material Sale Return",
+      "DistinctPrintNamesJSON": "[{\"id\":388,\"printname\":\"Print\"},{\"id\":389,\"printname\":\"Detail Print\"},{\"id\":390,\"printname\":\"Invoice Print1\"},{\"id\":391,\"printname\":\"Invoice Print\"},{\"id\":392,\"printname\":\"Invoice Print (Old)\"},{\"id\":393,\"printname\":\"Invoice Print2\"},{\"id\":394,\"printname\":\"Invoice Print3\"},{\"id\":395,\"printname\":\"Invoice Print4\"},{\"id\":396,\"printname\":\"Solitaire Invoice\"}]"
+    },
+    {
+      "PrintMaster": "Memo",
+      "DistinctPrintNamesJSON": "[{\"id\":17,\"printname\":\"Detail Print (L)\"},{\"id\":67,\"printname\":\"Tax Invoice\"},{\"id\":78,\"printname\":\"Jewellery Tax Invoice\"},{\"id\":81,\"printname\":\"Detail Print 1\"},{\"id\":121,\"printname\":\"Packing List 2\"},{\"id\":135,\"printname\":\"Jewellery Tax Summary\"},{\"id\":136,\"printname\":\"Rough Estimate\"},{\"id\":137,\"printname\":\"Approval Memo\"},{\"id\":145,\"printname\":\"Item Wise Print2\"},{\"id\":151,\"printname\":\"Retail Print 3\"},{\"id\":161,\"printname\":\"Detail Print Group(P)\"},{\"id\":162,\"printname\":\"Detail Print Group(L)\"},{\"id\":206,\"printname\":\"Packing List 4\"},{\"id\":209,\"printname\":\"Detail Print 7\"},{\"id\":239,\"printname\":\"Summary 1\"},{\"id\":243,\"printname\":\"Jewellery Item Wise\"},{\"id\":247,\"printname\":\"Detail Print 11\"},{\"id\":274,\"printname\":\"Detail Print 12\"},{\"id\":279,\"printname\":\"Print 1\"},{\"id\":289,\"printname\":\"Packing List 7\"},{\"id\":292,\"printname\":\"Packing List 7Group\"},{\"id\":296,\"printname\":\"Estimate Print\"},{\"id\":310,\"printname\":\"Packing List E\"},{\"id\":311,\"printname\":\"Invoice Print 5\"},{\"id\":316,\"printname\":\"Print 2\"},{\"id\":317,\"printname\":\"Export Print\"},{\"id\":329,\"printname\":\"Detail Print 10\"},{\"id\":330,\"printname\":\"Designset Packinglist\"},{\"id\":345,\"printname\":\"Packing List 7Group S\"},{\"id\":349,\"printname\":\"Jewellery Tax Invoice 2\"},{\"id\":351,\"printname\":\"Packing List 7D Group\"},{\"id\":380,\"printname\":\"Tax Invoice 5 S\"}]"
+    },
+    {
+      "PrintMaster": "Memo Material Issue",
+      "DistinctPrintNamesJSON": "[{\"id\":372,\"printname\":\"Memo Material Issue\"}]"
+    },
+    {
+      "PrintMaster": "Memo Material Return",
+      "DistinctPrintNamesJSON": "[{\"id\":373,\"printname\":\"Memo Material Return\"}]"
+    },
+    {
+      "PrintMaster": "Memo Return",
+      "DistinctPrintNamesJSON": "[{\"id\":21,\"printname\":\"Detail Print\"},{\"id\":27,\"printname\":\"Solitaire Invoice\"},{\"id\":71,\"printname\":\"Detail Print4\"},{\"id\":98,\"printname\":\"Packing List\"},{\"id\":111,\"printname\":\"Tax Invoice 5\"},{\"id\":207,\"printname\":\"Packing List 4\"},{\"id\":293,\"printname\":\"Packing List 7Group\"},{\"id\":332,\"printname\":\"Jewellery Tax Invoice\"},{\"id\":368,\"printname\":\"Packing List 7 D Group\"}]"
+    },
+    {
+      "PrintMaster": "Orders",
+      "DistinctPrintNamesJSON": "[{\"id\":172,\"printname\":\"Print\"},{\"id\":173,\"printname\":\"Req. Print\"},{\"id\":174,\"printname\":\"Design Print\"},{\"id\":261,\"printname\":\"Sale Order\"},{\"id\":334,\"printname\":\"Order Print AM\"},{\"id\":359,\"printname\":\"Order Print\"},{\"id\":364,\"printname\":\"Jewellery Tax Summary C\"}]"
+    },
+    {
+      "PrintMaster": "Quote",
+      "DistinctPrintNamesJSON": "[{\"id\":167,\"printname\":\"Jewellery Tax Invoice\"},{\"id\":168,\"printname\":\"Summary Print\"},{\"id\":169,\"printname\":\"Summary 4\"},{\"id\":192,\"printname\":\"Print 1\"},{\"id\":211,\"printname\":\"Detail Print 7\"},{\"id\":248,\"printname\":\"Detail Print 11\"},{\"id\":259,\"printname\":\"Sale Order\"},{\"id\":273,\"printname\":\"Detail Print 12\"},{\"id\":286,\"printname\":\"Packing List 7\"},{\"id\":291,\"printname\":\"Packing List 7Group\"},{\"id\":304,\"printname\":\"Packing List 3\"},{\"id\":307,\"printname\":\"Export Print\"},{\"id\":315,\"printname\":\"Print 2\"},{\"id\":319,\"printname\":\"Print Quotation\"},{\"id\":347,\"printname\":\"Packing List 7Group S\"},{\"id\":357,\"printname\":\"Retail Invoice Print S\"},{\"id\":358,\"printname\":\"Detail Print 5\"},{\"id\":362,\"printname\":\"Packing List 1 S\"}]"
+    },
+    {
+      "PrintMaster": "Sale",
+      "DistinctPrintNamesJSON": "[{\"id\":5,\"printname\":\"Summary 1\"},{\"id\":8,\"printname\":\"Retail Invoice\"},{\"id\":32,\"printname\":\"Item Wise Print\"},{\"id\":42,\"printname\":\"Estimate Print\"},{\"id\":49,\"printname\":\"Retail Tax Invoice\"},{\"id\":50,\"printname\":\"Detail Print1 (P)\"},{\"id\":51,\"printname\":\"Jewellery Invoice\"},{\"id\":52,\"printname\":\"Labour Bill\"},{\"id\":62,\"printname\":\"Jewellery Tax Invoice\"},{\"id\":69,\"printname\":\"Misc Print\"},{\"id\":72,\"printname\":\"Summary 3\"},{\"id\":79,\"printname\":\"Summary 5\"},{\"id\":84,\"printname\":\"Rough Estimate\"},{\"id\":91,\"printname\":\"Invoice Print3\"},{\"id\":99,\"printname\":\"Invoice Print4\"},{\"id\":108,\"printname\":\"Tax Invoice 5\"},{\"id\":114,\"printname\":\"Detail Print 5\"},{\"id\":118,\"printname\":\"Export Print\"},{\"id\":126,\"printname\":\"Invoice Print 5\"},{\"id\":134,\"printname\":\"Jewellery Tax Summary\"},{\"id\":139,\"printname\":\"Item Wise Print1\"},{\"id\":143,\"printname\":\"Item Wise Print2\"},{\"id\":148,\"printname\":\"Retail Print 2\"},{\"id\":160,\"printname\":\"Detail Print1 Group(L)\"},{\"id\":163,\"printname\":\"Invoice Print 6\"},{\"id\":164,\"printname\":\"Detail Print 6\"},{\"id\":177,\"printname\":\"Retail Invoice Print 4\"},{\"id\":184,\"printname\":\"Retail Invoice Print 5\"},{\"id\":185,\"printname\":\"Jewellery Tax Invoice 1\"},{\"id\":188,\"printname\":\"Detail Print 7\"},{\"id\":191,\"printname\":\"Packing List 3\"},{\"id\":194,\"printname\":\"Summary 9\"},{\"id\":197,\"printname\":\"Detail Print 8\"},{\"id\":212,\"printname\":\"Retail Print 1\"},{\"id\":213,\"printname\":\"Detail Print 9\"},{\"id\":214,\"printname\":\"Invoice Print 9\"},{\"id\":220,\"printname\":\"Retail Invoice Print 7\"},{\"id\":223,\"printname\":\"Invoice Print 10\"},{\"id\":226,\"printname\":\"Jewellery Tax Invoice 2\"},{\"id\":227,\"printname\":\"Export Print 1\"},{\"id\":228,\"printname\":\"Invoice Print 12\"},{\"id\":229,\"printname\":\"Tax Invoice 6\"},{\"id\":232,\"printname\":\"Detail Print 10\"},{\"id\":235,\"printname\":\"Estimate Print 1\"},{\"id\":236,\"printname\":\"MISC Print 1\"},{\"id\":237,\"printname\":\"Detail Print 11\"},{\"id\":238,\"printname\":\"Summary 12\"},{\"id\":242,\"printname\":\"Jewellery Retail Invoice C\"},{\"id\":244,\"printname\":\"Invoice print R\"},{\"id\":249,\"printname\":\"Detail Print R\"},{\"id\":251,\"printname\":\"Summary Print S\"},{\"id\":254,\"printname\":\"Detail Print K\"},{\"id\":262,\"printname\":\"Export Print 2\"},{\"id\":263,\"printname\":\"Export Invoice\"},{\"id\":266,\"printname\":\"Invoice Print 8A\"},{\"id\":269,\"printname\":\"Packing List 7\"},{\"id\":271,\"printname\":\"Detail Print 12\"},{\"id\":272,\"printname\":\"Packing List 7Group\"},{\"id\":277,\"printname\":\"Invoice Print K\"},{\"id\":280,\"printname\":\"Sale Order\"},{\"id\":282,\"printname\":\"Detail Print S\"},{\"id\":283,\"printname\":\"Invoice Print V\"},{\"id\":284,\"printname\":\"Detail Print C\"},{\"id\":298,\"printname\":\"Packing List S\"},{\"id\":305,\"printname\":\"Packing List E\"},{\"id\":308,\"printname\":\"Tax Invoice 5A\"},{\"id\":312,\"printname\":\"Export Invoice A\"},{\"id\":313,\"printname\":\"Export A\"},{\"id\":314,\"printname\":\"Export Invoice B\"},{\"id\":320,\"printname\":\"export invoice s\"},{\"id\":321,\"printname\":\"Designset Packinglist\"},{\"id\":324,\"printname\":\"Tax Invoice A\"},{\"id\":327,\"printname\":\"Packing List 7D Group\"},{\"id\":335,\"printname\":\"Detail Print1 (P) K\"},{\"id\":336,\"printname\":\"Packing List 3 AM\"},{\"id\":338,\"printname\":\"Jewellery Tax Summary C\"},{\"id\":344,\"printname\":\"Packing List 7Group S\"},{\"id\":353,\"printname\":\"Item Wise Print P\"},{\"id\":355,\"printname\":\"Retail Invoice Print S\"},{\"id\":360,\"printname\":\"Packing List 1 S\"},{\"id\":365,\"printname\":\"Invoice Print N\"},{\"id\":376,\"printname\":\"Jewellery Invoice T\"},{\"id\":377,\"printname\":\"Detail Print1 (P) CJ\"},{\"id\":378,\"printname\":\"Tax Invoice 5 S\"},{\"id\":386,\"printname\":\"Official Invoice\"}]"
+    },
+    {
+      "PrintMaster": "Sale Return",
+      "DistinctPrintNamesJSON": "[{\"id\":24,\"printname\":\"Detail Print\"},{\"id\":25,\"printname\":\"Summary 2\"},{\"id\":26,\"printname\":\"Summary Print\"},{\"id\":33,\"printname\":\"Item Wise Print\"},{\"id\":44,\"printname\":\"Summary 1\"},{\"id\":83,\"printname\":\"Summary 4\"},{\"id\":85,\"printname\":\"Retail Print\"},{\"id\":96,\"printname\":\"Packing List\"},{\"id\":102,\"printname\":\"Jewellery Invoice 2\"},{\"id\":109,\"printname\":\"Tax Invoice 5\"},{\"id\":119,\"printname\":\"Labour Bill\"},{\"id\":142,\"printname\":\"Item Wise Print1\"},{\"id\":144,\"printname\":\"Item Wise Print2\"},{\"id\":150,\"printname\":\"Retail Print 3\"},{\"id\":154,\"printname\":\"Retail Print 2\"},{\"id\":158,\"printname\":\"Jewellery Tax Invoice\"},{\"id\":187,\"printname\":\"Detail Print 6\"},{\"id\":200,\"printname\":\"Invoice Print\"},{\"id\":201,\"printname\":\"Invoice Print4\"},{\"id\":202,\"printname\":\"Invoice Print 8\"},{\"id\":203,\"printname\":\"Packing List 3\"},{\"id\":205,\"printname\":\"Packing List 4\"},{\"id\":208,\"printname\":\"Detail Print 7\"},{\"id\":246,\"printname\":\"Tax Invoice 1\"},{\"id\":258,\"printname\":\"Summary 12\"},{\"id\":300,\"printname\":\"Packing List 7Group\"},{\"id\":306,\"printname\":\"Invoice Print 11\"},{\"id\":367,\"printname\":\"Packing List 7 D Group\"},{\"id\":379,\"printname\":\"Tax Invoice 5 S\"}]"
+    },
+    {
+      "PrintMaster": "Shipment",
+      "DistinctPrintNamesJSON": "[{\"id\":178,\"printname\":\"Delivery Note1\"},{\"id\":267,\"printname\":\"Delivery Note2\"}]"
+    }
+  ]
+}

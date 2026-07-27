@@ -1,0 +1,106 @@
+@use "../../../Sass/Variable.scss" as *;
+
+.ReportListPage_main {
+    display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 92vh;
+  overflow: auto;
+
+  .spList_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgb(86, 74, 252);
+    height: 8vh;
+    width: 100%;
+    .spList_title {
+      font-size: 20px;
+      font-weight: 600;
+      color: white;
+      font-family: $fontFamily;
+      margin: 0px 20px;
+    }
+  }
+
+.all_report_list_main{
+  display: flex;
+  justify-content: center;
+  height: 80vh;
+}
+
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent; // keep it clean
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgb(86, 74, 252);
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgb(66, 54, 220);
+  }
+
+  /* 🔹 Firefox */
+  scrollbar-width: thin; /* makes it thinner */
+  scrollbar-color: rgb(86, 74, 252) transparent;
+
+  .Sp_list_singleView {
+    // box-shadow: rgba(0, 0, 0, 0.1) 0px 10px 50px;
+    padding: 15px;
+    margin-bottom: 10px;
+    text-transform: none;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    height: 200px;
+    width: 20%;
+
+    .Btn_AddColumn {
+      font-family: $fontFamily;
+      color: rgb(86, 74, 252);
+      border-color: rgb(86, 74, 252);
+    }
+
+    .sp_list_Title {
+      font-size: 15px;
+      margin: 0px 3px;
+      font-weight: 600;
+      color: black !important;
+      font-family: $fontFamily;
+      width: 100%;
+      display: flex;
+      overflow: hidden;
+    }
+    .sp_list_Description {
+      font-size: 13px;
+      display: flex;
+      font-family: $fontFamily;
+      width: 100%;
+      margin: 0px 3px;
+      color: black !important;
+    }
+  }
+
+  .Sp_list_ADD_REPORT {
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    text-transform: none;
+    padding: 10px 15px;
+    border: 2px dotted #ddd;
+    color: rgb(86, 74, 252) !important;
+    border-radius: 6px;
+    width: 99.5%;
+    font-family: $fontFamily;
+    font-size: 18px;
+    gap: 5px;
+  }
+}

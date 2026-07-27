@@ -1,0 +1,392 @@
+@use "../../../Sass/Variable.scss" as *;
+
+$primary: rgb(86, 74, 252);
+$primary-dark: rgb(66, 54, 220);
+$header-height: 44px;
+$tabbar-height: 38px;
+
+.mrp-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  font-family: $fontFamily;
+  background: #f8f8fc;
+}
+
+// ── Header ──────────────────────────────────────────────
+.mrp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: $primary;
+  height: $header-height;
+  padding: 0 12px;
+  flex-shrink: 0;
+
+  .mrp-header-left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mrp-header-right {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .mrp-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    letter-spacing: 0.3px;
+  }
+}
+
+// ── Body ─────────────────────────────────────────────────
+.mrp-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+// ── Left Panel ───────────────────────────────────────────
+.mrp-left {
+  width: 320px;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e5e7eb;
+  background: white;
+  flex-shrink: 0;
+
+  .mrp-left-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fafafa;
+  }
+
+  .mrp-left-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mrp-card-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    &::-webkit-scrollbar { width: 3px; }
+    &::-webkit-scrollbar-thumb { background: $primary; border-radius: 4px; }
+
+    .mrp-card-loading {
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+      padding-top: 20px;
+    }
+  }
+
+  .mrp-report-card {
+    padding: 10px 12px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    background: white;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+
+    &:hover {
+      border-color: rgba(86, 74, 252, 0.4);
+      box-shadow: 0 2px 8px rgba(86, 74, 252, 0.1);
+    }
+
+    &.selected {
+      border-color: $primary;
+      background: #f5f3ff;
+      box-shadow: 0 2px 8px rgba(86, 74, 252, 0.15);
+    }
+
+    .mrp-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .mrp-card-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mrp-card-open-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: $primary;
+      background: rgba(86, 74, 252, 0.12);
+      border-radius: 10px;
+      padding: 1px 7px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .mrp-card-desc {
+      font-size: 11px;
+      color: #6b7280;
+      margin: 0 0 8px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mrp-card-bottom {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mrp-card-chip {
+      font-size: 10px !important;
+      height: 18px !important;
+      background-color: #ede9fe !important;
+      color: #5b21b6 !important;
+    }
+
+    .mrp-card-pid {
+      font-size: 10px;
+      color: #9ca3af;
+      margin-left: auto;
+    }
+
+    .mrp-card-eye {
+      padding: 3px !important;
+      color: #9ca3af;
+      transition: color 0.15s;
+    }
+
+    &.selected .mrp-card-eye {
+      color: $primary;
+    }
+
+    &:hover .mrp-card-eye {
+      color: $primary;
+    }
+  }
+}
+
+// ── Right Panel ──────────────────────────────────────────
+.mrp-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// ── Tab Bar ──────────────────────────────────────────────
+.mrp-tabbar {
+  display: flex;
+  align-items: center;
+  height: $tabbar-height;
+  background: white;
+  border-bottom: 2px solid #e5e7eb;
+  padding: 0 8px;
+  gap: 4px;
+  overflow-x: auto;
+  flex-shrink: 0;
+
+  &::-webkit-scrollbar {
+    height: 3px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $primary;
+    border-radius: 4px;
+  }
+
+  .mrp-tabbar-hint {
+    font-size: 12px;
+    color: #9ca3af;
+    padding-left: 8px;
+    font-style: italic;
+  }
+}
+
+.mrp-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: #f3f4f6;
+  transition: background 0.15s;
+  white-space: nowrap;
+  height: 30px;
+
+  &:hover {
+    background: #ede9fe;
+  }
+
+  &.active {
+    background: white;
+    border-color: #e5e7eb;
+    border-bottom-color: white;
+    box-shadow: 0 -2px 0 $primary;
+
+    .mrp-tab-label {
+      color: $primary;
+      font-weight: 600;
+    }
+  }
+
+  .mrp-tab-label {
+    font-size: 12px;
+    color: #374151;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mrp-tab-pid {
+    font-size: 10px;
+    color: #9ca3af;
+    background: #f3f4f6;
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+
+  .mrp-tab-action {
+    opacity: 0;
+    transition: opacity 0.15s;
+    padding: 2px !important;
+  }
+
+  &:hover .mrp-tab-action,
+  &.active .mrp-tab-action {
+    opacity: 1;
+  }
+}
+
+// ── Single Iframe Area (Tab View) ────────────────────────
+.mrp-iframe-area {
+  flex: 1;
+  overflow: hidden;
+  background: #f0f0f5;
+
+  .mrp-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+}
+
+// ── Empty State ──────────────────────────────────────────
+.mrp-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: #9ca3af;
+
+  p {
+    font-size: 14px;
+    margin: 0;
+    text-align: center;
+  }
+
+  .mrp-empty-hint {
+    font-size: 12px;
+    color: #c4c4c4;
+  }
+}
+
+// ── Grid View ────────────────────────────────────────────
+.mrp-grid-report-area {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  overflow: auto;
+  align-content: start;
+  background: #f0f0f5;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $primary;
+    border-radius: 4px;
+  }
+}
+
+.mrp-grid-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  background: white;
+  min-height: 400px;
+
+  .mrp-grid-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #fafafa;
+    border-bottom: 1px solid #f0f0f0;
+    flex-shrink: 0;
+
+    .mrp-grid-card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mrp-grid-card-pid {
+      font-size: 10px;
+      color: #9ca3af;
+      background: #f3f4f6;
+      border-radius: 3px;
+      padding: 1px 5px;
+      white-space: nowrap;
+    }
+
+    .mrp-grid-card-actions {
+      display: flex;
+      gap: 2px;
+    }
+  }
+
+  .mrp-grid-iframe {
+    flex: 1;
+    border: none;
+    display: block;
+    width: 100%;
+    min-height: 370px;
+  }
+}

@@ -1,0 +1,76 @@
+body {
+  font-family: "Poppins", sans-serif !important;
+  margin: 0px !important;
+}
+
+*::before,
+*::after {
+  font-family: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+div,
+button {
+  font-family: $fontFamily !important;
+}
+
+.AibuttonClassname {
+  position: relative !important;
+  overflow: hidden !important;
+  background: #fff !important;
+  color: #6400b8 !important;
+  border-radius: 16px !important;
+  border: 1px solid #f0deff !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  text-transform: capitalize !important;
+  transition: all 0.3s ease !important;
+  width: 180px !important;
+
+  // lighting layer
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, #6400b8, transparent);
+    transform: skewX(-20deg);
+    animation: shineFlow 2.5s infinite;
+  }
+
+  &.no-anim {
+    &::before {
+      animation: none;
+      opacity: 0;
+    }
+  }
+
+  &.hover {
+    &:hover {
+      background: #6400b8 !important;
+      transform: scale(1.05);
+      color: #fff;
+    }
+  }
+}
+
+@keyframes shineFlow {
+  0% {
+    left: -120%;
+  }
+
+  100% {
+    left: 120%;
+  }
+}

@@ -1,0 +1,399 @@
+.container {
+  width: 100% !important;
+  width: 61.083vw !important;
+  box-sizing: border-box;
+  padding: 10px;
+  margin: 150px 1rem 100px 1rem;
+  letter-spacing: 0.2px;
+  flex-wrap: wrap;
+  gap: 10px 15px;
+}
+
+.disflx {
+  display: flex;
+}
+
+.disflxCen {
+  display: flex;
+  justify-content: space-between;
+}
+
+.spfntbH {
+  font-size: 12px;
+  line-height: 13px;
+}
+
+.spfntHead {
+  font-size: 13px;
+  line-height: 14px;
+}
+
+.col1 {
+  flex: 0 0 calc(20% - 12px);
+  box-sizing: border-box;
+}
+
+.spaclftTpm {
+  padding-left: 3px;
+  padding-top: 3px;
+}
+
+.spfntlft {
+  text-align: left;
+}
+
+.spacBtom {
+  padding-bottom: 3px;
+}
+
+.spacrighTpm {
+  padding-right: 3px;
+  text-align: right;
+}
+
+.spbrWord {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.imgwdtheit {
+  width: 91%;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 5px 10px;
+}
+
+.imgwdtheit img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.wdth_50 {
+  width: 50%;
+}
+
+.wdth_55 {
+  width: 55%;
+}
+
+.wdth_45 {
+  width: 45%;
+}
+
+.spfntBld {
+  font-weight: bold;
+}
+
+.spbrRht {
+  border-right: 1px solid #dddddd;
+}
+
+.spbrlFt {
+  border-left: 1px solid #dddddd;
+}
+
+.brBtom {
+  border-bottom: 1px solid #dddddd;
+}
+
+.brTpm {
+  border-top: 1px solid #dddddd;
+}
+
+.brbxAll {
+  border: 1px solid #dddddd;
+}
+
+.prnt_btn {
+  padding-top: 10px;
+  padding-right: 20px;
+  justify-content: end;
+}
+
+.minheit {
+  height: 21px;
+}
+
+/** Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.pagination button {
+  padding: 3px 12px;
+  font-size: 14px;
+  background-color: #f1f5f9;
+  border: none;
+  border-radius: 999px;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.pagination button:hover {
+  background-color: #dbeafe; /* Light blue */
+  color: #1e3a8a; /* Darker blue */
+}
+
+.pagination button.active {
+  background-color: #2563eb; /* Blue */
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.pagination button:disabled {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+
+@media print {
+  @page {
+    size: A4;                  /* ← portrait, as you want */
+    margin: 5mm;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Hide UI elements */
+  .fil_sec,
+  .prnt_btn,
+  .pagination,
+  .printHide,
+  .hideData {
+    display: none !important;
+  }
+
+  /* Main container */
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: stretch !important;      /* ← KEY: all cards in a row = same height */
+    justify-content: flex-start !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 3px !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  /* Card column */
+  .col1 {
+    flex: 0 0 19.5% !important;
+    max-width: 19.5% !important;
+    width: 19.5% !important;
+    box-sizing: border-box !important;
+    display: flex !important;             /* ← needed for stretch to work on child */
+    flex-direction: column !important;
+  }
+
+  /* Card inner box */
+  .brbxAll {
+    flex: 1 !important;                   /* ← stretches to fill col1 height */
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;          /* ← clips overflow, no layout expansion */
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  /* Prevent card splitting across pages */
+  .pagBrkIns {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Image box */
+  .imgwdtheit {
+    width: 100% !important;
+    height: 110px !important;
+    padding: 3px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;            /* ← image area never shrinks */
+  }
+
+  .imgwdtheit img {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  /* Typography */
+  .printLabelData {
+    font-size: 8px !important;
+    line-height: 1.2 !important;
+  }
+
+  .spfntbH {
+    font-size: 8px !important;
+    line-height: 10px !important;
+  }
+
+  .spfntHead {
+    font-size: 9px !important;
+    line-height: 10px !important;
+  }
+
+  .spfntBld {
+    font-size: 8px !important;
+  }
+
+  /* Spacing */
+  .spaclftTpm {
+    padding-left: 2px !important;
+    padding-top: 2px !important;
+  }
+
+  .spacrighTpm {
+    padding-right: 2px !important;
+  }
+
+  .spacBtom {
+    padding-bottom: 2px !important;
+  }
+
+  .minheit {
+    height: 14px !important;
+  }
+}
+
+/* @media print {
+  @page {
+    size: A4;
+    margin: 5px;
+    margin-top: 35px;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .pagBrkIns {
+    break-after: auto;
+    break-inside: avoid !important;
+    -webkit-column-break-inside: avoid !important;
+    display: inline-block !important;
+    vertical-align: top;
+    width: 100%; 
+  }
+
+  @media print {
+    .col1 {
+      display: block !important;
+      flex: 0 0 18.5% !important;
+      max-width: 18.5% !important;
+    }
+  }
+
+  .printLabelData {
+    font-size: 8px !important;
+  }
+
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    box-sizing: border-box;
+    gap: 10px 10px;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  .col1 {
+    flex: 0 0 18.5%;
+    max-width: 18.5%;
+    box-sizing: border-box;
+  }
+  .fil_sec {
+    display: none;
+  }
+
+  .imgwdtheit {
+    width: 115px !important;
+    height: 115px !important;
+    padding: 5px 10px;
+  }
+
+  .imgwdtheit img {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .spaclftTpm {
+    padding-left: 2px;
+    padding-top: 2px;
+  }
+
+  .spacrighTpm {
+    padding-right: 2px;
+  }
+
+  .spacBtom {
+    padding-bottom: 2px;
+  }
+
+  .prnt_btn {
+    display: none;
+  }
+
+  .spfntbH {
+    font-size: 9px;
+    line-height: 10px;
+  }
+
+  .spfntHead {
+    font-size: 10px;
+    line-height: 11px;
+  }
+
+  .minheit {
+    height: 16.2px;
+  }
+
+  .pagination {
+    display: none !important;
+  }
+
+  .printHide {
+    display: none !important;
+  }
+
+  .hideData {
+    display: none !important;
+  }
+} */

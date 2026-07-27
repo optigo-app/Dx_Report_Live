@@ -1,0 +1,7 @@
+@use "../../../../../Sass/Variable.scss" as *;
+
+.ask-optigo-ai-drawer {
+  --primary-btncolor: #{$primary-btncolor};
+  --primary-btncolor-start: #{$primary-btncolor-start};
+  --primary-btncolor-end: #{$primary-btncolor-end};
+}

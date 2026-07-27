@@ -1,0 +1,72 @@
+
+@use "../../../../../Sass/Variable.scss" as *;
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.fontFamily{
+  font-family: $fontFamily !important;
+}
+
+.summaryItem {
+  width: 100%;
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  height: 62px;
+  padding: 6px 12px;
+
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.2s ease;
+}
+
+.summaryCard:hover {
+  border-color: #d1d5db;
+}
+
+.summaryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summaryTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summaryValueWrapper {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.summaryValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.summaryUnit {
+  font-size: 12px;
+  color: #6b7280;
+}
