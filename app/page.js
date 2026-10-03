@@ -32,9 +32,8 @@ export default function Page() {
 // Dxreport - beta - 6006 - 29   
 // npm run build && pm2 restart 29 && pm2 save 
 
-// Dxreport - live - 6010  - 28  
-// npm run build && pm2 restart 28 && pm2 save 
-
+// Dxreport - live - 6010  - 26  
+// npm run build && pm2 restart 26 && pm2 save 
 
 // LIVE BETA :-       5020
 // LIVE LIVE :-       5021

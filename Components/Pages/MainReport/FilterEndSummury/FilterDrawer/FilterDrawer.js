@@ -385,18 +385,35 @@ const FilterDrawer = ({
           style={{ margin: "0px", display: "flex", gap: "10px" }}
         >
           {/* Min Input */}
+          {/* Min Input */}
           <TextField
             type="number"
             key={`filter-${col.headerNamesingle}-MinFilter`}
             name={`filter-${col.headerNamesingle}-MinFilter`}
             label={`${col.headerNamesingle} Min`}
             variant="outlined"
-            value={draftFilters[`${col.FieldName}_min`] || ""}
+            value={
+              draftFilters[`${col.FieldName}_min`] === undefined ||
+                draftFilters[`${col.FieldName}_min`] === ""
+                ? ""
+                : draftFilters[`${col.FieldName}_min`]
+            }
             onChange={(e) => {
-              const value = e.target.value ? parseFloat(e.target.value) : "";
+              const raw = e.target.value;
+              if (raw === "") {
+                setDraftFilters((prev) => ({ ...prev, [`${col.FieldName}_min`]: "" }));
+                setFiltersShowDraf((prev) => ({ ...prev, [`${col.headerNamesingle}_min`]: "" }));
+                return;
+              }
+              const value = parseFloat(raw);
+              if (isNaN(value) || value < 0) return; // block negative, allow 0
               setDraftFilters((prev) => ({ ...prev, [`${col.FieldName}_min`]: value }));
               setFiltersShowDraf((prev) => ({ ...prev, [`${col.headerNamesingle}_min`]: value }));
             }}
+            onKeyDown={(e) => {
+              if (e.key === "-" || e.key === "e" || e.key === "+") e.preventDefault();
+            }}
+            inputProps={{ min: 0 }}
             style={{ width: "50%" }}
             InputLabelProps={{ style: { fontFamily: "Poppins, sans-serif" } }}
             InputProps={{ style: { height: 40, fontSize: 16 } }}
@@ -419,12 +436,28 @@ const FilterDrawer = ({
             name={`filter-${col.headerNamesingle}-MaxFilter`}
             label={`${col.headerNamesingle} Max`}
             variant="outlined"
-            value={draftFilters[`${col.FieldName}_max`] || ""}
+            value={
+              draftFilters[`${col.FieldName}_max`] === undefined ||
+                draftFilters[`${col.FieldName}_max`] === ""
+                ? ""
+                : draftFilters[`${col.FieldName}_max`]
+            }
             onChange={(e) => {
-              const value = e.target.value ? parseFloat(e.target.value) : "";
+              const raw = e.target.value;
+              if (raw === "") {
+                setDraftFilters((prev) => ({ ...prev, [`${col.FieldName}_max`]: "" }));
+                setFiltersShowDraf((prev) => ({ ...prev, [`${col.headerNamesingle}_max`]: "" }));
+                return;
+              }
+              const value = parseFloat(raw);
+              if (isNaN(value) || value < 0) return; // block negative, allow 0
               setDraftFilters((prev) => ({ ...prev, [`${col.FieldName}_max`]: value }));
               setFiltersShowDraf((prev) => ({ ...prev, [`${col.headerNamesingle}_max`]: value }));
             }}
+            onKeyDown={(e) => {
+              if (e.key === "-" || e.key === "e" || e.key === "+") e.preventDefault();
+            }}
+            inputProps={{ min: 0 }}
             style={{ width: "50%" }}
             InputLabelProps={{ style: { fontFamily: "Poppins, sans-serif" } }}
             InputProps={{ style: { height: 40, fontSize: 16 } }}

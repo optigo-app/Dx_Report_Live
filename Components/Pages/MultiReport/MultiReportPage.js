@@ -1,7 +1,7 @@
 // Components/Pages/MultiReport/MultiReportPage.js
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { IconButton, Tooltip, Chip } from "@mui/material";
 import {
   Eye,
@@ -17,48 +17,16 @@ import { CallApi } from "@/API/CallApi/CallApi";
 import "./MultiReportPage.scss";
 import { useSearchParams } from "next/navigation";
 
-const SAMPLE_REPORTS = [
-  {
-    id: 1,
-    ReportName: "Job Order Report",
-    pid: 18352,
-    ReportDescription: "Detailed job order tracking report",
-    category: "Job",
-  },
-  {
-    id: 2,
-    ReportName: "Customer Report",
-    pid: 18334,
-    ReportDescription: "Customer-wise summary data",
-    category: "Customer",
-  },
-  {
-    id: 3,
-    ReportName: "Production Report",
-    pid: 18413,
-    ReportDescription: "Production overview report",
-    category: "Production",
-  },
-  {
-    id: 4,
-    ReportName: "Sample Report",
-    pid: 18333,
-    ReportDescription: "Sample test report with demo data",
-    category: "Sample",
-  },
-];
-
 const MultiReportPage = () => {
   const searchParams = useSearchParams();
   const [reportList, setReportList] = useState([]);
-  console.log('reportList: ', reportList);
   const [loading, setLoading] = useState(false);
   const [openReports, setOpenReports] = useState([]); // { id, pid, name, url }
-  console.log('openReports: ', openReports);
   const [activeTabId, setActiveTabId] = useState(null);
   const [layout, setLayout] = useState("tabs"); // 'tabs' | 'grid'
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [refreshKey, setRefreshKey] = useState({});
+  const activeCardRef = useRef(null);
   const pid = searchParams.get("pid");
 
   const syncSessionForIframes = useCallback(() => {
@@ -106,7 +74,7 @@ const MultiReportPage = () => {
         setReportList(JSON.parse(response?.rd[0]?.SubReports))
       }
     } catch {
-      console.log('errr')
+      console.error('errr')
     } finally {
       setLoading(false);
     }
@@ -117,9 +85,15 @@ const MultiReportPage = () => {
     fetchReports();
   }, [fetchReports, syncSessionForIframes]);
 
+  useEffect(() => {
+    if (activeCardRef.current) {
+      activeCardRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [activeTabId]);
+
   const openReport = (row) => {
     syncSessionForIframes();
-    const existing = openReports.find((r) => r.SubPageId === row.SubPageId);
+    const existing = openReports.find((r) => r.pid === row.SubPageId);
     if (existing) {
       setActiveTabId(existing.id);
       return;
@@ -136,13 +110,11 @@ const MultiReportPage = () => {
 
   const closeReport = (id, e) => {
     e.stopPropagation();
-    setOpenReports((prev) => {
-      const next = prev.filter((r) => r.id !== id);
-      if (activeTabId === id) {
-        setActiveTabId(next.length > 0 ? next[next.length - 1].id : null);
-      }
-      return next;
-    });
+    const next = openReports.filter((r) => r.id !== id);
+    setOpenReports(next);
+    if (activeTabId === id) {
+      setActiveTabId(next.length > 0 ? next[next.length - 1].id : null);
+    }
   };
 
   const refreshReport = (id, e) => {
@@ -159,57 +131,32 @@ const MultiReportPage = () => {
 
   return (
     <div className="mrp-page">
-      {/* Header */}
-      <div className="mrp-header">
-        <div className="mrp-header-left">
-          <IconButton
-            size="small"
-            onClick={() => setLeftCollapsed((v) => !v)}
-            sx={{ color: "white", mr: 1 }}
-          >
-            {leftCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </IconButton>
-          <span className="mrp-title">Multi Report Viewer</span>
-          {openReports.length > 0 && (
-            <Chip
-              label={`${openReports.length} open`}
-              size="small"
-              sx={{ ml: 1.5, bgcolor: "rgba(255,255,255,0.2)", color: "white", fontSize: "11px" }}
-            />
-          )}
-        </div>
-        <div className="mrp-header-right">
-          <Tooltip title="Tab view — one report at a time">
-            <IconButton
-              size="small"
-              onClick={() => setLayout("tabs")}
-              sx={{ color: layout === "tabs" ? "white" : "rgba(255,255,255,0.5)", mr: 0.5 }}
-            >
-              <Rows3 size={16} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Grid view — see all open reports">
-            <IconButton
-              size="small"
-              onClick={() => setLayout("grid")}
-              sx={{ color: layout === "grid" ? "white" : "rgba(255,255,255,0.5)" }}
-            >
-              <LayoutGrid size={16} />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-
       {/* Body */}
       <div className="mrp-body">
         {/* Left Panel */}
-        {!leftCollapsed && (
+        {leftCollapsed ? (
+          <div className="mrp-left-collapsed">
+            <Tooltip title="Show reports panel" placement="right">
+              <IconButton
+                size="small"
+                onClick={() => setLeftCollapsed(false)}
+                sx={{ color: "#3f3f46" }}
+              >
+                <ChevronRight size={18} />
+              </IconButton>
+            </Tooltip>
+          </div>
+        ) : (
           <div className="mrp-left">
             <div className="mrp-left-header">
               <span className="mrp-left-title">Available Reports</span>
-              <Tooltip title="Refresh list">
-                <IconButton size="small" onClick={fetchReports}>
-                  <RefreshCw size={14} />
+              <Tooltip title={leftCollapsed ? "Expand" : "Collapse"}>
+                <IconButton
+                  size="small"
+                  onClick={() => setLeftCollapsed((v) => !v)}
+                  sx={{ color: "#3f3f46" }}
+                >
+                  {leftCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                 </IconButton>
               </Tooltip>
             </div>
@@ -218,11 +165,13 @@ const MultiReportPage = () => {
                 <p className="mrp-card-loading">Loading reports...</p>
               ) : (
                 reportList.map((report) => {
-                  const isOpen = openReports.some((r) => r.SubPageId === report.SubPageId);
+                  const isOpen = openReports.some((r) => r.pid === report.SubPageId);
+                  const isActive = isOpen && activeReport?.pid === report.SubPageId;
                   return (
                     <div
                       key={report.SubPageId}
-                      className={`mrp-report-card ${isOpen ? "selected" : ""}`}
+                      ref={isActive ? activeCardRef : null}
+                      className={`mrp-report-card ${isActive ? "selected" : ""}`}
                       onClick={() => openReport(report)}
                     >
                       <div className="mrp-card-top">
@@ -230,18 +179,6 @@ const MultiReportPage = () => {
                         {isOpen && (
                           <span className="mrp-card-open-badge">Open</span>
                         )}
-                      </div>
-                      <div className="mrp-card-bottom">
-                        <span className="mrp-card-pid">PID: {report.SubPageId}</span>
-                        <Tooltip title={isOpen ? "Already open — click to focus" : "Open report"}>
-                          <IconButton
-                            size="small"
-                            className="mrp-card-eye"
-                            onClick={(e) => { e.stopPropagation(); openReport(report); }}
-                          >
-                            <Eye size={14} />
-                          </IconButton>
-                        </Tooltip>
                       </div>
                     </div>
                   );
@@ -253,52 +190,57 @@ const MultiReportPage = () => {
 
         {/* Right Panel */}
         <div className="mrp-right">
+          {/* Tab bar — always visible so layout buttons work in both views */}
+          <div className="mrp-tabbar">
+            <div className="mrp-tabbar-tabs">
+              {openReports.length === 0 ? (
+                <span className="mrp-tabbar-hint">Open a report from the list →</span>
+              ) : (
+                openReports.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`mrp-tab-item ${r.id === activeTabId ? "active" : ""}`}
+                    onClick={() => setActiveTabId(r.id)}
+                  >
+                    <span className="mrp-tab-label">{r.name}</span>
+                    <Tooltip title="Close">
+                      <IconButton
+                        size="small"
+                        className="mrp-tab-action"
+                        onClick={(e) => closeReport(r.id, e)}
+                      >
+                        <X size={11} />
+                      </IconButton>
+                    </Tooltip>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* <div className="mrp-tabbar-actions">
+              <Tooltip title="Tab view — one report at a time">
+                <IconButton
+                  size="small"
+                  onClick={() => setLayout("tabs")}
+                  sx={{ color: layout === "tabs" ? "#3f3f46" : "#9ca3af" }}
+                >
+                  <Rows3 size={16} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Grid view — see all open reports">
+                <IconButton
+                  size="small"
+                  onClick={() => setLayout("grid")}
+                  sx={{ color: layout === "grid" ? "#3f3f46" : "#9ca3af" }}
+                >
+                  <LayoutGrid size={16} />
+                </IconButton>
+              </Tooltip>
+            </div> */}
+          </div>
+
           {layout === "tabs" ? (
             <>
-              {/* Tab bar */}
-              <div className="mrp-tabbar">
-                {openReports.length === 0 ? (
-                  <span className="mrp-tabbar-hint">Open a report from the list →</span>
-                ) : (
-                  openReports.map((r) => (
-                    <div
-                      key={r.id}
-                      className={`mrp-tab-item ${r.id === activeTabId ? "active" : ""}`}
-                      onClick={() => setActiveTabId(r.id)}
-                    >
-                      <span className="mrp-tab-label">{r.name}</span>
-                      <span className="mrp-tab-pid">#{r.SubPageId}</span>
-                      <Tooltip title="Refresh">
-                        <IconButton
-                          size="small"
-                          className="mrp-tab-action"
-                          onClick={(e) => refreshReport(r.id, e)}
-                        >
-                          <RefreshCw size={11} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Open in new tab">
-                        <IconButton
-                          size="small"
-                          className="mrp-tab-action"
-                          onClick={(e) => openInNewTab(r.url, e)}
-                        >
-                          <ExternalLink size={11} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Close">
-                        <IconButton
-                          size="small"
-                          className="mrp-tab-action"
-                          onClick={(e) => closeReport(r.id, e)}
-                        >
-                          <X size={11} />
-                        </IconButton>
-                      </Tooltip>
-                    </div>
-                  ))
-                )}
-              </div>
               {/* Iframe area */}
               <div className="mrp-iframe-area">
                 {activeReport ? (
@@ -343,18 +285,7 @@ const MultiReportPage = () => {
                   <div key={r.id} className="mrp-grid-card">
                     <div className="mrp-grid-card-header">
                       <span className="mrp-grid-card-title">{r.name}</span>
-                      <span className="mrp-grid-card-pid">PID: {r.pid}</span>
                       <div className="mrp-grid-card-actions">
-                        <Tooltip title="Refresh">
-                          <IconButton size="small" onClick={(e) => refreshReport(r.id, e)}>
-                            <RefreshCw size={12} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Open in new tab">
-                          <IconButton size="small" onClick={(e) => openInNewTab(r.url, e)}>
-                            <ExternalLink size={12} />
-                          </IconButton>
-                        </Tooltip>
                         <Tooltip title="Close">
                           <IconButton size="small" onClick={(e) => closeReport(r.id, e)}>
                             <X size={12} />

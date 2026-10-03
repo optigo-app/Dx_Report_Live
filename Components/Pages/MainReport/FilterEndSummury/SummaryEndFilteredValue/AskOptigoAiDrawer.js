@@ -202,19 +202,6 @@ const AskOptigoAiDrawer = ({ open, onClose }) => {
           px: 3,
           py: 1,
           // backgroundColor: "#f8f9ff",
-          scrollbarWidth: "thin",
-          scrollbarColor: "#cbd5e1 transparent",
-          "&::-webkit-scrollbar": {
-            width: "4px",
-            height: "4px",
-          },
-          "&::-webkit-scrollbar-thumb": {
-            backgroundColor: "#cbd5e1",
-            borderRadius: "999px",
-          },
-          "&::-webkit-scrollbar-track": {
-            background: "transparent",
-          },
         }}
       >
         {messages.length === 0 ? (

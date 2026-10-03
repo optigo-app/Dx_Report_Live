@@ -7,35 +7,39 @@ import React, {
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { Box, Button, CircularProgress, FormControl, InputLabel, MenuItem, Select, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Typography } from "@mui/material";
 import "./SpliterReport.scss";
 import { ReportCallApi } from "@/API/ReportCommonAPI/ReportCallApi";
 import MainReport from "../MainReport/MainReport";
 import DualDatePicker from "@/Utils/DatePicker/DualDatePicker";
+import { CircleX } from "lucide-react";
 import SideToggleButton from '@/Components/ui/SplitterBtn';
-import PanelCard from './components/PanelCard';
-import PanelSearchBox from './components/PanelSearchBox';
-import PanelHeader from './components/PanelHeader';
-import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
-import CheckIcon from '@mui/icons-material/Check';
+import ClearAllRoundedIcon from '@mui/icons-material/ClearAllRounded';
 
 const SplitterWithToggle = ({ index, onDrag, isCollapsed, onToggle, isDragging }) => (
   <div style={{ position: "relative", width: 0, zIndex: 100, display: "flex", alignItems: "center", flexShrink: 0 }}>
     {/* Drag zone */}
     <div
       className={`splitter ${isDragging ? "active" : ""}`}
-      style={{ position: "absolute", width: 10, left: -5, top: 0, height: "100%", cursor: "col-resize", zIndex: 1 }}
+      style={{ position: "absolute", width: 0, left: -5, top: 0, height: "100%", cursor: "col-resize", zIndex: 1 }}
       onMouseDown={(e) => !isCollapsed && onDrag(index, e)}
     />
     {/* Toggle button */}
     <SideToggleButton
+      onMouseEnter={e => e.currentTarget.style.background = "#857af7ff"}
+      onMouseLeave={e => e.currentTarget.style.background = "#7367f0"}
       onClick={onToggle}
-      isCollapsed={isCollapsed}
       title={isCollapsed ? `Expand panel ${index + 1}` : `Collapse panel ${index + 1}`}
+      svg={
+         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+        stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d={isCollapsed ? "M3 2 L7 5 L3 8" : "M7 2 L3 5 L7 8"} />
+      </svg>
+      }
     />
+
   </div>
 );
-
 
 {/* <button
       onClick={onToggle}
@@ -106,9 +110,7 @@ export default function SpliterReport({
   spliterReportSecondPanelSecondoption,
   authActionDropdownMaster,
   isPrintColumn,
-  isRightBaseColumMaster,
-  onSearchFilter,
-  reportsExcelRights
+  isRightBaseColumMaster
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [spData, setSpData] = useState(null);
@@ -137,8 +139,7 @@ export default function SpliterReport({
   const [IsDragging, setIsDragging] = useState(false);
   const [collapsed, setCollapsed] = useState([false, false]);
   const savedWidths = useRef(spliterReportSecondPanel ? [18, 18] : [18]);
-  const COLLAPSED_W = 38;
-  const [clearAllDataSignal, setClearAllDataSignal] = useState(0);
+  const COLLAPSED_W = 32;
 
   // ─── NEW: active second-panel field (first or second option) ──────────────
   // "first"  → use spliterReportSecondPanel  (e.g. "Department")
@@ -173,6 +174,7 @@ export default function SpliterReport({
 
       if (largeData) {
         if (spliterReportShow) {
+          setIsLoading(false);
           setSpData(OtherKeyData);
           setFilteredReportData(OtherKeyData);
           return;
@@ -194,13 +196,14 @@ export default function SpliterReport({
       } else {
         fetchReportData({}, "0");
       }
+      setIsLoading(false);
     };
     fetchData();
   }, [pid, reportId, largeData, filterState.dateRange]);
 
   const fetchReportData = async (filters = {}, Master, allData = false, dateOverride = null) => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       let AllData = JSON.parse(sessionStorage.getItem("reportVarible"));
 
       const masterDataBody = {
@@ -213,24 +216,6 @@ export default function SpliterReport({
 
       const startDate = dateOverride?.startDate ?? filterState.dateRange.startDate;
       const endDate = dateOverride?.endDate ?? filterState.dateRange.endDate;
-      let ServerFilterHeader = "";
-      let ServerFilterValue = "";
-
-      if (Array.isArray(filters) && filters.length > 0) {
-        const serverFilters = filters.filter(
-          (f) => f.ServerFilterHeader && f.ServerFilterValue
-        );
-
-        ServerFilterHeader = serverFilters
-          .map((f) => f.ServerFilterHeader)
-          .join("#");
-        ServerFilterValue = serverFilters
-          .map((f) => f.ServerFilterValue)
-          .join("#");
-      } else if (filters.FilterHeader || filters.ServerFilterHeader) {
-        ServerFilterHeader = filters.ServerFilterHeader || "";
-        ServerFilterValue = filters.ServerFilterValue || "";
-      }
 
       const body = {
         con: JSON.stringify({ mode: "GetFullReport", appuserid: AllData?.LUId, IPAddress: clientIpAddress }),
@@ -241,8 +226,6 @@ export default function SpliterReport({
           FilterEndDate: allData ? "" : formatToYYYYMMDD(endDate),
           ...(filters.FilterHeader && { FilterHeader: filters.FilterHeader }),
           ...(filters.FilterValue && { FilterValue: filters.FilterValue }),
-          ...(ServerFilterHeader && { ServerFilterHeader }),
-          ...(ServerFilterValue && { ServerFilterValue }),
         }),
         f: "DynamicReport ( data )",
       };
@@ -253,11 +236,10 @@ export default function SpliterReport({
       setFilteredReportData(response);
       setSelectedFirstPanelKey(null);
       setSelectedSecondPanelKey(null);
-      setIsLoading(false);
     } catch (error) {
-      setIsLoading(false);
       console.error("getReportData failed:", error);
     }
+    setIsLoading(false);
   };
 
   const activeRd3 = useMemo(() => {
@@ -644,90 +626,113 @@ export default function SpliterReport({
     return [...new Set(spData.rd3.map((r) => r[key]).filter(Boolean))];
   }, [spData, spliterReportFirstPanelFilter]);
 
-  // PanelSearchBox is now a shared component — no inline definition needed
+  const SearchBox = useCallback(
+    React.memo(({ value, onChange, onClear, placeholder }) => (
+      <div className="splitter-search" style={{ position: "relative", display: "inline-block", width: "100%",
+      }}>
+        <input
+          type="text"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            borderRadius: "5px",
+            outline: "none",
+            border: "1px solid lightgray",
+            width: "100%",
+            paddingRight: "25px",
+            boxSizing: "border-box",
+            paddingInline:'10px',
+            paddingBlock:'10px'
+          }}
+        />
+        {value && (
+          <IconButton
+            onClick={onClear}
+            style={{ position: "absolute", right: "0", top: "50%", transform: "translateY(-50%)", cursor: "pointer", userSelect: "none" }}
+          >
+            <CircleX style={{ height: "20px", width: "20px" }} />
+          </IconButton>
+        )}
+      </div>
+    )),
+    []
+  );
 
-
-  // ─── Second panel option toggle (iOS/macOS style Segmented Control) ────────
+  
+  // ─── NEW: Second panel option toggle (Department | Employee style) ─────────
   const SecondPanelOptionToggle = () => {
     if (!spliterReportSecondPanelSecondoption || !spliterReportSecondPanel) return null;
+
+    // Derive display labels from the field names
+    const firstLabel = spliterReportSecondPanel;
+    const secondLabel = spliterReportSecondPanelSecondoption;
+
     return (
-      <ToggleButtonGroup
-        value={activeSecondPanelOption}
-        exclusive
-        onChange={(_, val) => { if (val) setActiveSecondPanelOption(val); }}
-        size="small"
-        sx={{
-          width: "100%",
-          mb: 1,
-          p: "3px",
-          backgroundColor: "#e4e4e7",
-          borderRadius: "10px",
-          border: "none",
-          gap: "2px",
-          "& .MuiToggleButtonGroup-grouped": {
-            border: "none !important",
-            borderRadius: "7px !important",
-          },
-          "& .MuiToggleButton-root": {
+      <div
+        style={{
+          display: "flex",
+          gap: 0,
+          marginBottom: 8,
+          border: "1px solid #7367f0",
+          borderRadius: 6,
+          overflow: "hidden",
+          flexShrink: 0,
+        }}
+      >
+        <button
+          onClick={() => setActiveSecondPanelOption("first")}
+          style={{
             flex: 1,
-            fontSize: "0.75rem",
-            fontWeight: 500,
-            textTransform: "capitalize",
-            color: "#52525b",
-            py: 0.6,
-            px: 1.25,
+            padding: "10px",
+            fontSize: 12,
+            fontWeight: activeSecondPanelOption === "first" ? 600 : 400,
+            background: activeSecondPanelOption === "first"
+              ? "linear-gradient(270deg,#7367f0b3,#7367f0)"
+              : "transparent",
+            color: activeSecondPanelOption === "first" ? "#fff" : "#7367f0",
+            border: "none",
+            cursor: "pointer",
+            transition: "all 0.18s",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-          },
-          "& .MuiToggleButton-root.Mui-selected": {
-            backgroundColor: "#ffffff !important",
-            color: "#09090b !important",
-            fontWeight: 600,
-            boxShadow: "0 2px 6px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)",
-            "&:hover": { backgroundColor: "#ffffff !important" },
-          },
-          "& .MuiToggleButton-root:not(.Mui-selected):hover": {
-            backgroundColor: "rgba(255, 255, 255, 0.4)",
-            color: "#27272a",
-          },
-        }}
-      >
-        <ToggleButton value="first">{spliterReportSecondPanel}</ToggleButton>
-        <ToggleButton value="second">{spliterReportSecondPanelSecondoption}</ToggleButton>
-      </ToggleButtonGroup>
+          }}
+        >
+          {firstLabel}
+        </button>
+        <button
+          onClick={() => setActiveSecondPanelOption("second")}
+          style={{
+            flex: 1,
+            padding: "5px 8px",
+            fontSize: 12,
+            fontWeight: activeSecondPanelOption === "second" ? 600 : 400,
+            background: activeSecondPanelOption === "second"
+              ? "linear-gradient(270deg,#7367f0b3,#7367f0)"
+              : "transparent",
+            color: activeSecondPanelOption === "second" ? "#fff" : "#7367f0",
+            border: "none",
+            borderLeft: "1px solid #7367f0",
+            cursor: "pointer",
+            transition: "all 0.18s",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {secondLabel}
+        </button>
+      </div>
     );
   };
   // ────────────────────────────────────────────────────────────────────────────
 
 
-
-  const Loader = ({ isLoading }) => {
-    if (!isLoading) return null;
-
-    return (
-      <Box
-        sx={{
-          position: "fixed",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(255,255,255,0.4)",
-          backdropFilter: "blur(2px)",
-          zIndex: 9999,
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  };
-
   return (
     <DragDropContext onDragEnd={() => { }}>
-      <Loader isLoading={isLoading} />
       <Box sx={{ height: "100vh", display: "flex", flexDirection: "row" }} ref={containerRef}>
+
         {/* ── FIRST PANEL ── */}
         <div
           className="pane"
@@ -735,80 +740,35 @@ export default function SpliterReport({
             width: collapsed[0] ? COLLAPSED_W : paneWidths[0],
             minWidth: collapsed[0] ? COLLAPSED_W : undefined,
             maxWidth: collapsed[0] ? COLLAPSED_W : undefined,
-            padding: collapsed[0] ? 0 : 0,
+            padding: collapsed[0] ? 0 : 8,
             overflow: "hidden",
             transition: "width 0.22s cubic-bezier(.4,0,.2,1)",
             display: "flex",
             flexDirection: "column",
             alignItems: collapsed[0] ? "center" : undefined,
-            background: collapsed[0] ? "rgba(244, 241, 241, 0.11)" : "#ffffff",
-            borderRight: "1px solid #e4e4e728",
+            background: collapsed[0] ? "rgba(244,241,241,0.5)" : undefined,
             cursor: collapsed[0] ? "pointer" : undefined,
           }}
           onClick={collapsed[0] ? () => toggleCollapse(0) : undefined}
         >
           {collapsed[0] ? (
-            <Box
-              sx={{
-                height: "100%",
-                width: "100%",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-start",
-                pt: 2.5,
-                cursor: "pointer",
-                userSelect: "none",
-                transition: "background-color 0.2s ease",
-                "&:hover": {
-                  backgroundColor: "rgba(124, 108, 240, 0.08)",
-                },
-              }}
-            >
-              <Box
-                sx={{
-                  writingMode: "vertical-rl",
-                  textOrientation: "mixed",
-                  transform: "rotate(180deg)",
-                  fontSize: "0.72rem",
-                  fontWeight: 650,
-                  color: "#7c6cf0",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  py: 1,
-                }}
-              >
-                {Array.isArray(filteredColumns) && filteredColumns[0]?.HeaderName || "Panel 1"}
-              </Box>
-              {selectedFirstPanelKey && (
-                <Box
-                  sx={{
-                    writingMode: "vertical-rl",
-                    textOrientation: "mixed",
-                    transform: "rotate(180deg)",
-                    fontSize: "0.7rem",
-                    fontWeight: 600,
-                    color: "#09090b",
-                    letterSpacing: "0.02em",
-                    py: 1,
-                    maxHeight: "60%",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {selectedFirstPanelKey === "__ALL__"
-                    ? "ALL"
-                    : getDisplayValue(selectedFirstPanelKey, spliterReportFirstPanel)}
-                </Box>
-              )}
-            </Box>
+            <div style={{
+              writingMode: "vertical-rl", textOrientation: "mixed", fontSize: 11, fontWeight: 600,
+              color: "#7367f0", letterSpacing: "0.09em", padding: "16px 0px", userSelect: "none",
+              textTransform:'uppercase',
+     
+            }}>
+              {Array.isArray(filteredColumns) && filteredColumns[0]?.HeaderName || "Panel 1"}
+            </div>
           ) : (
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", px: 1, pt: 1 }}>
-              {/* Date picker row */}
-              {!largeData && (
-                <Box sx={{ display: "flex", gap: 1, mb: 1.25, alignItems: "center", width: "100%" }}>
-                  <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
+            <div
+            style={{
+               padding: "0px 0px", 
+            }}
+            >
+              <div style={{ marginTop:'5px' }}>
+                {!largeData && (
+                  <div style={{ display: 'flex', gap: '10px' }}>
                     <DualDatePicker
                       filterState={filterState}
                       setFilterState={setFilterState}
@@ -817,274 +777,178 @@ export default function SpliterReport({
                       withountDateFilter={false}
                       hideDisplay={filterState.dateRange.startDate?.getFullYear?.() === 1990}
                     />
-                  </Box>
-                  {spliterReportAllDataButton && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => {
-                        const monthCount = Number(spliterReportMonthRestiction) || 1;
-                        const endDate = new Date();
-                        const startDate = new Date();
-                        startDate.setMonth(startDate.getMonth() - monthCount);
-                        startDate.setDate(1);
-                        setFilterState({ dateRange: { startDate, endDate } });
-                        // ✅ clear sidebar (panel) filters
-                        setFirstPanelSearch("");
-                        setSecondPanelSearch("");
-                        // ✅ clear MainReport on-screen + drawer filters
-                        setClearAllDataSignal((prev) => prev + 1);
-                        fetchReportData({}, 0, false, { startDate, endDate });
-                      }}
-                      sx={{
-                        minWidth: "48px",
-                        height: "35px",
-                        px: 1.5,
-                        fontSize: "0.78rem",
-                        fontWeight: 500,
-                        textTransform: "capitalize",
-                        borderRadius: "6px",
-                        backgroundColor: "#ffffff",
-                        color: "#09090b",
-                        borderColor: "#e4e4e7",
-                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
-                        transition: "all 0.15s ease",
-                        "&:hover": {
-                          backgroundColor: "#f4f4f5",
-                          borderColor: "#a1a1aa",
-                          color: "#09090b",
-                        },
-                      }}
-                    >
-                      All
-                    </Button>
-                  )}
-                </Box>
-              )}
+                    {spliterReportAllDataButton && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => {
+                          const monthCount = Number(spliterReportMonthRestiction) || 1;
 
-              {/* Optional dropdown filter (Shadcn / Radix style Select) */}
-              {spliterReportFirstPanelFilter && (
-                <Box sx={{ mb: 1.25 }}>
-                  <FormControl
-                    size="small"
-                    sx={{
-                      width: "100%",
-                      backgroundColor: "#ffffff",
-                      borderRadius: "6px",
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: "6px",
-                        fontSize: "0.8rem",
-                        fontWeight: 500,
-                        color: "#09090b",
-                        backgroundColor: "#ffffff",
-                        "& .MuiSelect-select": {
-                          py: "8px",
-                          px: "10px",
-                          display: "flex",
-                          alignItems: "center",
-                        },
-                      },
-                      "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#e4e4e7",
-                        borderWidth: "1px",
-                        transition: "all 0.18s ease",
-                      },
-                      "&:hover .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#a1a1aa",
-                      },
-                      "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#18181b !important",
-                        borderWidth: "1px !important",
-                        boxShadow: "0 0 0 2px rgba(24, 24, 27, 0.08)",
-                      },
-                      "& .MuiSelect-icon": {
-                        color: "#71717a",
-                        right: "8px",
-                      },
-                    }}
-                  >
-                    <Select
-                      id="first-panel-filter-select"
-                      value={firstPanelFilterValue}
-                      displayEmpty
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setFirstPanelFilterValue(val);
-                        setSelectedFirstPanelKey(null);
-                        setSelectedSecondPanelKey(null);
-                        if (!val) { setDropdownFilteredRd3(null); return; }
-                        const map = spData?.rd2?.[0] || {};
-                        const key = Object.keys(map).find((k) => map[k] === spliterReportFirstPanelFilter);
-                        if (!key) return;
-                        const filteredRows = spData.rd3.filter((r) => String(r[key]) === String(val));
-                        setDropdownFilteredRd3(filteredRows);
-                      }}
-                      IconComponent={UnfoldMoreRoundedIcon}
-                      renderValue={(selected) => {
-                        if (!selected) {
-                          return (
-                            <Typography sx={{ fontSize: "0.8rem", color: "#71717a", fontWeight: 500 }}>
-                              {spliterReportFirstPanelFilter}
-                            </Typography>
+                          const endDate = new Date();
+
+                          // Current month + previous months
+                          // Example:
+                          // monthCount = 2
+                          // => current month + previous 2 months
+                          const startDate = new Date();
+                          startDate.setMonth(startDate.getMonth() - monthCount);
+                          startDate.setDate(1); // optional: start from 1st day
+
+                          setFilterState({
+                            dateRange: { startDate, endDate }
+                          });
+
+                          fetchReportData(
+                            {},
+                            0,
+                            false,
+                            { startDate, endDate }
                           );
-                        }
-                        return getDisplayValue(selected, spliterReportFirstPanelFilter);
-                      }}
-                      MenuProps={{
-                        disableScrollLock: true,
-                        anchorOrigin: { vertical: "bottom", horizontal: "left" },
-                        transformOrigin: { vertical: "top", horizontal: "left" },
-                        PaperProps: {
-                          sx: {
-                            maxHeight: 320,
-                            borderRadius: "8px",
-                            mt: 0.5,
-                            p: "4px",
-                            backgroundColor: "#ffffff",
-                            border: "1px solid #e4e4e7",
-                            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -2px rgba(0, 0, 0, 0.04)",
-                            minWidth: "100%",
-                            boxSizing: "border-box",
-                            "& .MuiList-root": {
-                              p: 0,
-                            },
-                          },
-                        },
+                        }}
+                        sx={{
+                          minWidth: 'auto',
+                          padding: '17px 12px',
+                          fontSize: '0.95rem',
+                          height: '30px',
+                          textTransform: 'none',
+                          borderRadius: '5px',
+                          bgcolor: '#6f53ff',
+                          color: 'white',
+                          '&:hover': { bgcolor: '#6f53ff' }
+                        }}
+                      >
+                        All
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {spliterReportFirstPanelFilter && (
+                  <div style={{ margin: "10px 0px" }}>
+                    <FormControl
+                      fullWidth size="small" style={{ width: "200px" }}
+                      sx={{
+                        width: 200,
+                        "& .MuiOutlinedInput-root": { borderRadius: "6px", fontSize: "0.85rem" },
+                        "& .MuiOutlinedInput-notchedOutline": { borderColor: "#d5d5d573" },
+                        "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#d5d5d573" },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#d5d5d573" },
                       }}
                     >
-                      {/* Header Category Title */}
-                      {/* <Box
-                        sx={{
-                          px: 1.25,
-                          pt: 0.8,
-                          pb: 0.5,
-                          fontSize: "0.74rem",
-                          fontWeight: 700,
-                          color: "#09090b",
-                          letterSpacing: "0.01em",
-                          userSelect: "none",
+                      <InputLabel id="first-panel-filter-label">{spliterReportFirstPanelFilter}</InputLabel>
+                      <Select
+                        labelId="first-panel-filter-label"
+                        id="first-panel-filter-select"
+                        value={firstPanelFilterValue}
+                        label={spliterReportFirstPanelFilter}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFirstPanelFilterValue(val);
+                          setSelectedFirstPanelKey(null);
+                          setSelectedSecondPanelKey(null);
+                          if (!val) { setDropdownFilteredRd3(null); return; }
+                          const map = spData?.rd2?.[0] || {};
+                          const key = Object.keys(map).find((k) => map[k] === spliterReportFirstPanelFilter);
+                          if (!key) return;
+                          const filteredRows = spData.rd3.filter((r) => String(r[key]) === String(val));
+                          setDropdownFilteredRd3(filteredRows);
+                        }}
+                        style={{ height: 40, fontSize: 14 }}
+                        MenuProps={{
+                          PaperProps: { sx: { maxHeight: "400px !important", overflowY: "auto !important" } },
+                          style: { maxHeight: "400px" },
                         }}
                       >
-                        {spliterReportFirstPanelFilter}
-                      </Box> */}
-
-                      {/* All option */}
-                      <MenuItem
-                        value=""
-                        sx={{
-                          fontSize: "0.8rem",
-                          fontWeight: 500,
-                          color: firstPanelFilterValue === "" ? "#09090b" : "#3f3f46",
-                          borderRadius: "6px",
-                          py: "6px",
-                          px: 1.25,
-                          my: "2px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          transition: "all 0.15s ease",
-                          "&:hover": { backgroundColor: "#f4f4f5" },
-                          "&.Mui-selected": {
-                            backgroundColor: "#f4f4f5 !important",
-                            color: "#09090b",
-                            fontWeight: 500,
-                            "&:hover": { backgroundColor: "#f4f4f5 !important" },
-                          },
-                        }}
-                      >
-                        <span>All</span>
-                        {firstPanelFilterValue === "" && <CheckIcon sx={{ fontSize: 15, color: "#09090b" }} />}
-                      </MenuItem>
-
-                      {firstPanelFilterOptions.map((opt) => {
-                        const isSelected = firstPanelFilterValue === opt;
-                        const displayLabel = getDisplayValue(opt, spliterReportFirstPanelFilter);
-                        return (
-                          <MenuItem
-                            key={opt}
-                            value={opt}
-                            sx={{
-                              fontSize: "0.8rem",
-                              fontWeight: 500,
-                              color: isSelected ? "#09090b" : "#3f3f46",
-                              borderRadius: "6px",
-                              py: "6px",
-                              px: 1.25,
-                              my: "2px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              transition: "all 0.15s ease",
-                              "&:hover": { backgroundColor: "#f4f4f5" },
-                              "&.Mui-selected": {
-                                backgroundColor: "#f4f4f5 !important",
-                                color: "#09090b",
-                                fontWeight: 500,
-                                "&:hover": { backgroundColor: "#f4f4f5 !important" },
-                              },
-                            }}
-                          >
-                            <span>{displayLabel}</span>
-                            {isSelected && <CheckIcon sx={{ fontSize: 15, color: "#09090b" }} />}
+                        <MenuItem value="" style={{ fontSize: "14px" }}><em>All</em></MenuItem>
+                        {firstPanelFilterOptions.map((opt) => (
+                          <MenuItem key={opt} value={opt} style={{ fontSize: "13px" }}>
+                            {getDisplayValue(opt, spliterReportFirstPanelFilter)}
                           </MenuItem>
-                        );
-                      })}
-                    </Select>
-                  </FormControl>
-                </Box>
-              )}
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </div>
+                )}
 
-              {/* Panel header */}
-              <PanelHeader
-                title={Array.isArray(filteredColumns) && filteredColumns[0]?.HeaderName}
-                count={filteredFirstPanelValues?.length}
-                tooltipText={`Select ${Array.isArray(filteredColumns) && filteredColumns[0]?.HeaderName || "item"} to filter report data`}
-              />
 
-              {/* Search box */}
-              {hasFirstPanelData && (
-                <Box sx={{ mb: 1 }}>
-                  <PanelSearchBox
+                <Typography className="reportSpliter_top_headername">
+                  {/* {Array.isArray(filteredColumns) && filteredColumns.length > 0 && filteredColumns[0]?.HeaderName} */}
+                 
+                 <ClearAllRoundedIcon
+                 style={{
+                  color:'black !important'
+                 }}
+                 />
+                  {Array.isArray(filteredColumns) && filteredColumns[0]?.HeaderName}
+                </Typography>
+
+                {hasFirstPanelData && (
+                  <SearchBox
                     value={firstPanelSearch}
                     onChange={setFirstPanelSearch}
                     onClear={() => setFirstPanelSearch("")}
                     placeholder="Search..."
                   />
-                </Box>
-              )}
+                )}
+              </div>
 
-              {/* Card list */}
-              <Box
-                className="spliter1_maindiv"
-                sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1, pr: 0.5 }}
-              >
+              <div className="spliter1_maindiv">
                 {hasFirstPanelData ? (
                   <>
                     {spliterReportFirstPanelShowAll && (
-                      <PanelCard
-                        label="ALL"
-                        selected={selectedFirstPanelKey === "__ALL__"}
+                      <div
                         onClick={() => handleFirstPanelSelection("__ALL__")}
-                        summary={getSummaryForValue("__ALL__")}
-                      />
+                        style={{
+                          background: selectedFirstPanelKey === "__ALL__"
+                            ? "linear-gradient(270deg,#7367f0b3,#7367f0)" : "rgb(244 241 241 / 36%)",
+                          fontWeight: selectedFirstPanelKey === "__ALL__" ? "600" : "400",
+                          color: selectedFirstPanelKey === "__ALL__" ? "white" : "black",
+                        }}
+                        className="spliter1_showname"
+                      >
+                        <div className="spliter1_deatil_title">ALL</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "10px", rowGap: "4px", marginTop: "10px" }}>
+                          {Object.entries(getSummaryForValue("__ALL__")).map(([label, val]) => (
+                            <div key={label} style={{ fontSize: "12px" }}>
+                              <span>{label}:</span> <span style={{ fontWeight: 800 }}>{val}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                     {filteredFirstPanelValues?.map((v) => (
-                      <PanelCard
+                      <div
                         key={v}
-                        label={getDisplayValue(v, spliterReportFirstPanel)}
-                        selected={selectedFirstPanelKey === v}
                         onClick={() => handleFirstPanelSelection(v)}
-                        summary={getSummaryForValue(v)}
-                      />
+                        style={{
+                          background: selectedFirstPanelKey === v
+                            ? "linear-gradient(270deg,#7367f0b3,#7367f0)" : "rgb(244 241 241 / 36%)",
+                          fontWeight: selectedFirstPanelKey === v ? "600" : "400",
+                          color: selectedFirstPanelKey === v ? "white" : "black",
+                        }}
+                        className="spliter1_showname"
+                      >
+                        <div className="spliter1_deatil_title">{getDisplayValue(v, spliterReportFirstPanel)}</div>
+                        <div style={{
+                          marginTop: Object.keys(getSummaryForValue(v)).length > 0 ? "10px" : "0px",
+                          display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "10px", rowGap: "4px",
+                        }}>
+                          {Object.entries(getSummaryForValue(v)).map(([label, val]) => (
+                            <div key={label} style={{ fontSize: "12px" }}>
+                              <span>{label}:</span> <span style={{ fontWeight: 800 }}>{val}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </>
                 ) : (
-                  <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "0.78rem" }}>
-                    No Data
-                  </Box>
+                  <div style={{ height: "75%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                    <p>No Data</p>
+                  </div>
                 )}
-              </Box>
-            </Box>
+              </div>
+            </div>
           )}
         </div>
 
@@ -1112,143 +976,133 @@ export default function SpliterReport({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: collapsed[1] ? "center" : undefined,
-                background: collapsed[1] ? "rgba(244, 241, 241, 0.11)" : "#ffffff",
-                borderRight: "1px solid #e4e4e728",
+                background: collapsed[1] ? "rgba(244,241,241,0.5)" : undefined,
                 cursor: collapsed[1] ? "pointer" : undefined,
               }}
               onClick={collapsed[1] ? () => toggleCollapse(1) : undefined}
             >
               {collapsed[1] ? (
-                <Box
-                  sx={{
-                    height: "100%",
-                    width: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "flex-start",
-                    pt: 2.5,
-                    cursor: "pointer",
-                    userSelect: "none",
-                    transition: "background-color 0.2s ease",
-                    "&:hover": {
-                      backgroundColor: "rgba(124, 108, 240, 0.08)",
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      writingMode: "vertical-rl",
-                      textOrientation: "mixed",
-                      transform: "rotate(180deg)",
-                      fontSize: "0.72rem",
-                      fontWeight: 650,
-                      color: "#7c6cf0",
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      py: 1,
-                    }}
-                  >
-                    {activeSecondPanelField || "Panel 2"}
-                  </Box>
-                  {selectedSecondPanelKey && (
-                    <Box
-                      sx={{
-                        writingMode: "vertical-rl",
-                        textOrientation: "mixed",
-                        transform: "rotate(180deg)",
-                        fontSize: "0.7rem",
-                        fontWeight: 600,
-                        color: "#09090b",
-                        letterSpacing: "0.02em",
-                        py: 1,
-                        maxHeight: "60%",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {selectedSecondPanelKey === "__ALL__"
-                        ? "ALL"
-                        : getDisplayValue(selectedSecondPanelKey, activeSecondPanelField)}
-                    </Box>
-                  )}
-                </Box>
+                <div style={{
+      writingMode: "vertical-rl", textOrientation: "mixed", fontSize: 11, fontWeight: 600,
+              color: "#7367f0", letterSpacing: "0.09em", userSelect: "none",
+              textTransform:'uppercase',
+    padding: "16px 0px",
+
+            
+                }}>
+                  {/* Show active field name when collapsed */}
+                  {activeSecondPanelField || "Panel 2"}
+                </div>
               ) : (
-                <Box sx={{ display: "flex", flexDirection: "column", height: "100%", px: 1, pt: 1 }}>
+                <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                  <div
+                  style={{
+                        paddingLeft:'7px',
+                        paddingRight:'14px',
+                  }}
+                  >
 
-                  {/* ── TOGGLE BUTTONS (Department | Employee) ── */}
-                  <SecondPanelOptionToggle />
+                    {/* ── TOGGLE BUTTONS (Department | Employee) ── */}
+                    <SecondPanelOptionToggle />
 
-                  {/* Panel header for single-option mode */}
-                  {!spliterReportSecondPanelSecondoption && (
-                    <PanelHeader
-                      title={
-                        Array.isArray(filteredColumns2) && filteredColumns2.length > 0
-                          ? filteredColumns2[0]?.HeaderName
-                          : activeSecondPanelField
-                      }
-                      count={filteredSecondPanelValues?.length}
-                      tooltipText={`Select ${activeSecondPanelField || "item"} to refine report view`}
-                    />
-                  )}
+                    {/* Header name for the active option */}
+                    {!spliterReportSecondPanelSecondoption && <Typography className="reportSpliter_top_headername">
+                       <ClearAllRoundedIcon
+                       
+                       style={{
+                        color:'black !important'
+                       }}
+                       />
+                      {Array.isArray(filteredColumns2) && filteredColumns2.length > 0
+                        ? filteredColumns2[0]?.HeaderName
+                        : activeSecondPanelField}
+                    </Typography>}
 
-                  {/* Search */}
-                  {hasSecondPanelData && (
-                    <Box sx={{ mb: 1 }}>
-                      <PanelSearchBox
+                    {hasSecondPanelData && (
+                      <SearchBox
                         value={secondPanelSearch}
                         onChange={setSecondPanelSearch}
                         onClear={() => setSecondPanelSearch("")}
                         placeholder="Search..."
                       />
-                    </Box>
-                  )}
+                    )}
+                  </div>
 
-                  {/* Card list */}
-                  <Box
-                    className="spliter2_maindiv"
-                    sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1, pr: 0.5 }}
-                  >
+                  <div className="spliter2_maindiv">
                     {hasSecondPanelData ? (
                       <>
                         {spliterReportSecondPanelShowAll && (
-                          <PanelCard
-                            label="ALL"
-                            selected={selectedSecondPanelKey === "__ALL__"}
+                          <div
                             onClick={() => handleSecondPanelSelection("__ALL__")}
-                            summary={(() => {
-                              const firstFiltered =
-                                selectedFirstPanelKey === "__ALL__"
-                                  ? spData.rd3
-                                  : spData.rd3.filter((r) => r[firstKey] === selectedFirstPanelKey);
-                              return calculateSummaryForSecondPanel(firstFiltered);
-                            })()}
-                          />
+                            style={{
+                              background: selectedSecondPanelKey === "__ALL__"
+                                ? "linear-gradient(270deg,#7367f0b3,#7367f0)" : "rgb(244 241 241 / 36%)",
+                              color: selectedSecondPanelKey === "__ALL__" ? "white" : "#424651",
+                              fontWeight: selectedSecondPanelKey === "__ALL__" ? "600" : "400",
+                            }}
+                            className="spliter1_showname"
+                          >
+                            <div className="spliter1_deatil_title">ALL</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "10px", rowGap: "4px", marginTop: "10px" }}>
+                              {(() => {
+                                const firstFiltered =
+                                  selectedFirstPanelKey === "__ALL__"
+                                    ? spData.rd3
+                                    : spData.rd3.filter((r) => r[firstKey] === selectedFirstPanelKey);
+                                return Object.entries(calculateSummaryForSecondPanel(firstFiltered)).map(([label, val]) => (
+                                  <div key={label} style={{ fontSize: "12px" }}>
+                                    <span>{label}:</span> <span style={{ fontWeight: 800 }}>{val}</span>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </div>
                         )}
+
                         {filteredSecondPanelValues?.map((v) => {
+                          // ─── UPDATED: filter rows using activeSecondPanelField (secondKey) ───
                           const rows =
                             selectedFirstPanelKey === "__ALL__"
                               ? activeRd3.filter((r) => r[secondKey] === v)
                               : activeRd3.filter((r) => r[firstKey] === selectedFirstPanelKey && r[secondKey] === v);
+                          const summary = calculateSummaryForSecondPanel(rows);
                           return (
-                            <PanelCard
+                            <div
                               key={v}
-                              label={getDisplayValue(v, activeSecondPanelField)}
-                              selected={selectedSecondPanelKey === v}
                               onClick={() => handleSecondPanelSelection(v)}
-                              summary={calculateSummaryForSecondPanel(rows)}
-                            />
+                              style={{
+                                background: selectedSecondPanelKey === v
+                                  ? "linear-gradient(270deg,#7367f0b3,#7367f0)" : "rgb(244 241 241 / 36%)",
+                                color: selectedSecondPanelKey === v ? "white" : "#424651",
+                                fontWeight: selectedSecondPanelKey === v ? "600" : "400",
+                              }}
+                              className="spliter1_showname"
+                            >
+                              {/* ─── UPDATED: display value from activeSecondPanelField ─── */}
+                              <div className="spliter1_deatil_title">
+                                {getDisplayValue(v, activeSecondPanelField)}
+                              </div>
+                              <div style={{
+                                marginTop: Object.entries(summary).length > 0 ? "10px" : "0px",
+                                display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "10px", rowGap: "4px",
+                              }}>
+                                {Object.entries(summary).map(([label, val]) => (
+                                  <div key={label} style={{ fontSize: "12px" }}>
+                                    <span>{label}:</span> <span style={{ fontWeight: 800 }}>{val}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           );
                         })}
                       </>
                     ) : (
-                      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "0.78rem" }}>
-                        No Data
-                      </Box>
+                      <div style={{ height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                        <p>No Data</p>
+                      </div>
                     )}
-                  </Box>
-                </Box>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -1263,7 +1117,7 @@ export default function SpliterReport({
           </>
         )}
 
-        <div className="pane" style={{ width: paneWidths.at(-1), paddingLeft: "6px", boxSizing: "border-box", height: "100%", overflow: "hidden" }}>
+        <div className="pane" style={{ width: paneWidths.at(-1) }}>
           <MainReport
             OtherKeyData={filteredReportData || spData}
             masterData={masterData}
@@ -1287,8 +1141,6 @@ export default function SpliterReport({
             authActionDropdownMaster={authActionDropdownMaster}
             isPrintColumn={isPrintColumn}
             isRightBaseColumMaster={isRightBaseColumMaster}
-            reportsExcelRights={reportsExcelRights}
-            clearAllDataSignal={clearAllDataSignal}
           />
         </div>
       </Box>

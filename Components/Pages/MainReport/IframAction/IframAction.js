@@ -1,12 +1,11 @@
 import { Box, Button, Dialog, IconButton, Typography } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { MessageCircle, NotebookPen, Printer, X } from "lucide-react";
+import { MessageCircle, NotebookPen, PencilIcon, Printer, Upload, X } from "lucide-react";
 
 const IframAction = ({ params, col, iframeModelData }) => {
   const [iframeTitle, setIframeTitle] = useState();
   const [iframeUrl, setIframeUrl] = useState("");
   const [openHrefModel, setOpenHrefModel] = useState(false);
-
 
   const buildIframeUrl = (params, colId, iframeTypeId) => {
     const row = params?.row || {};
@@ -25,7 +24,6 @@ const IframAction = ({ params, col, iframeModelData }) => {
       );
       return key ? row[key] : "";
     };
-    console.log('rdParams: ', rdParams);
     const queryString = rdParams
       .map((p) => {
         if (p.IsStatic === true || p.IsStatic === "true") {
@@ -44,8 +42,6 @@ const IframAction = ({ params, col, iframeModelData }) => {
         }
       })
       .join("&");
-
-    console.log('queryString: ', queryString);
     return `${rd1Item.BaseUrl}${rd1Item.ReportRedirectUrl}&${queryString}`;
   };
 
@@ -110,8 +106,12 @@ const IframAction = ({ params, col, iframeModelData }) => {
             <Printer style={{ color: "gray" }} />
           ) : col?.IconName == "MessageCircle" ? (
             <MessageCircle style={{ color: "gray" }} />
+          ) : col?.IconName == "Upload" ? (
+            <Upload style={{ color: "gray" }} />
+          ) : col?.IconName == "Edit" ? (
+            <PencilIcon style={{ color: "gray" , height:'20px'}} />
           ) : col?.IframeColumnLable ? (
-            params?.value != "" ? params?.value : col?.IframeColumnLable
+            col?.IframeColumnLable
           ) :
             params?.value
         }
@@ -120,61 +120,67 @@ const IframAction = ({ params, col, iframeModelData }) => {
       <Dialog
         open={openHrefModel}
         onClose={() => setOpenHrefModel(false)}
-        maxWidth="xl"
-        fullWidth
         PaperProps={{
           sx: {
-            width: "60vw",
-            height: "80vh",
-            maxWidth: "90vw",
-            maxHeight: "80vh",
             borderRadius: 2,
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
           },
         }}
+
+        sx={{
+          '& .MuiPaper-root': {
+            maxWidth: '100% !important'
+          }
+        }}
       >
-        {/* Header */}
         <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            p: 2,
-            bgcolor: "#ebebeb",
-            flexShrink: 0,
+          style={{
+            height: `${col?.IframeHeight}px`,
+            width: `${col?.IframeWidth}px`,
           }}
         >
-          <Typography>{iframeTitle}</Typography>
-
-          <IconButton
-            size="small"
-            onClick={() => setOpenHrefModel(false)}
-            sx={{ border: "1px solid rgb(44 56 90)" }}
-          >
-            <X size={18} />
-          </IconButton>
-        </Box>
-
-        {/* Content */}
-        <Box
-          sx={{
-            flex: 1,
-            overflow: "auto",
-            p: 1,
-          }}
-        >
-          <iframe
-            src={iframeUrl}
-            title="iframe-preview"
-            style={{
-              width: "100%",
-              height: "100%",
-              border: "none",
-              display: "block",
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              p: 2,
+              // bgcolor: "#ebebeb",
+              bgcolor: "#222",
+              flexShrink: 0,
             }}
-          />
+          >
+            <Typography style={{color: 'white'}}>{iframeTitle}</Typography>
+
+            <IconButton
+              size="small"
+              onClick={() => setOpenHrefModel(false)}
+              sx={{ border: "1px solid white", color: 'white' }}
+            >
+              <X size={18} style={{color : 'white'}}/>
+            </IconButton>
+          </Box>
+
+          {/* Content */}
+          <Box
+            sx={{
+              p: 1,
+              height: '80%'
+            }}
+          >
+            <iframe
+              src={iframeUrl}
+              title="iframe-preview"
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none",
+                display: "block",
+              }}
+            />
+          </Box>
         </Box>
       </Dialog>
     </div>

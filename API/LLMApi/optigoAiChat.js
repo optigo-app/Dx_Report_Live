@@ -1,3 +1,5 @@
+import { postJson } from "./llmFetch";
+
 const isLocal =
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" ||
@@ -9,19 +11,9 @@ const optigoAiChat = async (body) => {
             ? "http://apioptigoai.web/api/chat"
             : "https://apioptigoai.optigoapps.com/api/chat";
 
-        const response = await fetch(APIURL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        return await response.json();
+        // timeoutMs: 0 — this endpoint can legitimately run longer than the
+        // default 30s used by the LLM endpoints.
+        return await postJson(APIURL, body, { timeoutMs: 0 });
     } catch (error) {
         console.error("Error in optigoAiChat:", error);
         throw error;

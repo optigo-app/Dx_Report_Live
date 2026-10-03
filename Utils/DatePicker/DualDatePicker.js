@@ -14,7 +14,9 @@ import { DateRangePicker } from "mui-daterange-picker";
 import { ThemeProvider } from "@mui/material/styles";
 import { CalendarDays } from "lucide-react";
 import ClearIcon from "@mui/icons-material/Clear";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import "./DualDatePicker.scss";
+
 
 const Datetheme = createTheme({
   palette: {
@@ -220,36 +222,77 @@ const DualDatePicker = ({
 
   return (
     <ThemeProvider theme={Datetheme}>
-      <Box display="flex" gap={1} alignItems="center">
+      <Box display="flex" gap={1} alignItems="center" sx={{ width: "100%", flex: 1 }}>
         <TextField
-          label="Date Range"
+          placeholder="Date Range"
           value={displayValue}
           onClick={handleOpen}
           size="small"
           fullWidth
           sx={{
+            width: "100%",
             minWidth: "150px",
-            "& .MuiInputBase-input": {
-              padding: "5px 2px",
-              fontSize: "13px",
-              cursor: "pointer",
+            backgroundColor: "#ffffff",
+            borderRadius: "6px",
+            "& .MuiOutlinedInput-root": {
+              height: "36px",
+              borderRadius: "6px",
+              fontSize: "0.78rem",
+              fontWeight: 500,
+              color: "#09090b",
+              backgroundColor: "#ffffff",
+              pl: "10px",
+              pr: "8px",
+              display: "flex",
+              alignItems: "center",
+              "& .MuiInputAdornment-root": {
+                display: "flex !important",
+                alignItems: "center !important",
+                marginRight: "6px",
+                color: "#52525b",
+              },
+              "& .MuiInputBase-input": {
+                height: "100%",
+                boxSizing: "border-box",
+                padding: "0px 2px",
+                fontSize: "0.78rem",
+                fontWeight: 500,
+                color: "#09090b",
+                cursor: "pointer",
+              },
             },
-            "& .MuiInputBase-root": {
-              padding: "3px",
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#e4e4e7",
+              borderWidth: "1px",
+              transition: "all 0.18s ease",
             },
-            "& .MuiButtonBase-root": {
-              padding: "8px 0px",
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#a1a1aa",
+            },
+            "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#18181b !important",
+              borderWidth: "1px !important",
+              boxShadow: "0 0 0 2px rgba(24, 24, 27, 0.08)",
             },
           }}
           readOnly
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start" sx={{ mr: 0.75, display: "flex", alignItems: "center" }}>
+                  <CalendarDays size={16} color="#52525b" />
+                </InputAdornment>
+              ),
+            },
+          }}
           InputProps={{
             startAdornment: (
-              <InputAdornment position="start">
-                <CalendarDays />
+              <InputAdornment position="start" sx={{ mr: 0.75, display: "flex", alignItems: "center" }}>
+                <CalendarDays size={16} color="#52525b" />
               </InputAdornment>
             ),
           }}
-          style={{ width: "210px" }}
+          style={{ width: "100%" }}
         />
         <Popover
           open={Boolean(anchorEl)}

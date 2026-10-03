@@ -16,10 +16,12 @@ export default function Print1JewelleryBook({
   printViewData,
   selectionModel, // ✅ new
 }) {
+  console.log('visibleItemsMain: ', visibleItemsMain);
   const img = "./images/noFound.jpg";
   const [msg, setMsg] = useState("");
   const [loader, setLoader] = useState(false);
   const [withImage, setWithImage] = useState(true);
+  const [custCode, setCustCode] = useState(true);
   const itemsPerPage = 1000;
   const [currentPage, setCurrentPage] = useState(1);
   const preloadedImages = useRef(new Set());
@@ -79,7 +81,7 @@ export default function Print1JewelleryBook({
       const totalPages = Math.ceil(
         (effectiveItems?.length || 0) / itemsPerPage
       );
-      
+
 
       if (nextPage <= totalPages) {
         const startIdx = (nextPage - 1) * itemsPerPage;
@@ -131,6 +133,79 @@ export default function Print1JewelleryBook({
       ? value?.toFixed(zeroes)
       : (+value)?.toFixed(zeroes);
 
+  // Same date formatting as MainReport (ColumnType === "Date")
+  const formatPrintDate = (value, isShowDateWithTime) => {
+    let formattedDate = "-";
+    if (value && value !== "-" && value != null) {
+      const alreadyFormatted =
+        /^\d{1,2}\s[A-Za-z]{3,9}\s\d{4}$/.test(value);
+      if (alreadyFormatted) {
+        formattedDate = value;
+      } else {
+        const isoNaiveMatch = typeof value === "string" &&
+          value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?$/);
+
+        if (isoNaiveMatch) {
+          const [, year, month, day, hour, minute, second] = isoNaiveMatch;
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const datePart = `${day} ${monthNames[parseInt(month, 10) - 1]} ${year}`;
+          const timePart = `${hour}:${minute}:${second}`;
+          formattedDate = isShowDateWithTime == "True"
+            ? `${datePart} ${timePart}`
+            : datePart;
+        } else {
+          const dateObj = new Date(value);
+          if (!isNaN(dateObj.getTime())) {
+            if (isShowDateWithTime == "True") {
+              const datePart = dateObj.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                timeZone: "UTC",
+              });
+              const timePart = dateObj.toLocaleTimeString("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+                timeZone: "UTC",
+              });
+              formattedDate = `${datePart} ${timePart}`;
+            } else {
+              formattedDate = dateObj.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                timeZone: "UTC",
+              });
+            }
+          }
+        }
+      }
+    }
+    return formattedDate;
+  };
+
+  const formatPrintValue = (field, value) => {
+    const isDateField =
+      field?.ColumnType === "Date" ||
+      field?.columntype === "Date" ||
+      field?.columnType === "Date" ||
+      field?.FieldType === "Date" ||
+      field?.fieldtype === "Date";
+    const isIsoDateValue =
+      typeof value === "string" &&
+      /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/.test(value);
+
+    if (isDateField || isIsoDateValue) {
+      return formatPrintDate(
+        value,
+        field?.IsShowDateWithTime ?? field?.isshowdatewithtime ?? field?.IsShowDateWithtime
+      );
+    }
+    return value;
+  };
+
   const handleImageError = (e) => {
     e.target.src = img;
   };
@@ -138,6 +213,11 @@ export default function Print1JewelleryBook({
   const handleImageHideShow = useCallback(() => {
     setWithImage(!withImage);
   }, [withImage]);
+
+  const handleCustoCodeHideShow = useCallback(() => {
+    setCustCode(!custCode);
+  }, [custCode]);
+
 
   const handlePrintCurrentPage = () => {
     onPrintClick(visibleItems, currentPage);
@@ -166,13 +246,16 @@ export default function Print1JewelleryBook({
   const renderCard = (e, i, isPrint = false) => (
     <div key={i} className="col1 pagBrkIns" style={{ width: '18%' }}>
       <div className="brbxAll spfntbH">
-        {e?.Customer ? (
-          <div className="w-100 brBtom spaclftTpm spacBtom spfntHead">
-            {e?.Customer}
-          </div>
-        ) : (
-          <div className="minheit brBtom"></div>
-        )}
+        {custCode &&
+          (e?.Customer ? (
+            <div className="w-100 brBtom spaclftTpm spacBtom spfntHead">
+              {e?.Customer}
+            </div>
+          ) : (
+            <div className="minheit brBtom"></div>
+          ))}
+
+
         {withImage && e?.ImageName !== "" && (
           <div className="w-100 brBtom imgwdtheit">
             <img
@@ -185,7 +268,7 @@ export default function Print1JewelleryBook({
         )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <div style={{width: '99%'}}>
+          <div style={{ width: '99%' }}>
             {rows.map((row, index) => {
               const leftVal = e?.[row.left?.value];
               const rightVal = row.right ? e?.[row.right?.value] : undefined;
@@ -199,10 +282,18 @@ export default function Print1JewelleryBook({
               const showLeft = row.left && !isZeroValue(leftVal);
               const showRight = row.right && !isZeroValue(rightVal);
 
+              if (!showLeft && !showRight) return null; // nothing to show, skip row entirely
+
               return (
                 <div
                   key={index}
-                  style={{ padding: '2px', display: 'flex', justifyContent: 'space-between', gap: '6px' }}
+                  style={{
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '6px',
+                  }}
                 >
                   {/* Left */}
                   <div style={{ width: '50%', minWidth: 0 }}>
@@ -228,11 +319,16 @@ export default function Print1JewelleryBook({
                             overflowWrap: 'anywhere',
                           }}
                         >
-                          {leftVal}
+                          {formatPrintValue(row.left, leftVal)}
                         </span>
                       </div>
                     )}
                   </div>
+
+                  {/* Separator — only when both sides have content */}
+                  {showLeft && showRight && (
+                    <span style={{ flexShrink: 0 }}>|</span>
+                  )}
 
                   {/* Right */}
                   <div style={{ width: '50%', minWidth: 0, textAlign: 'right' }}>
@@ -258,7 +354,7 @@ export default function Print1JewelleryBook({
                             overflowWrap: 'anywhere',
                           }}
                         >
-                          {rightVal}
+                          {formatPrintValue(row.right, rightVal)}
                         </span>
                       </div>
                     )}
@@ -343,22 +439,46 @@ export default function Print1JewelleryBook({
               With Image
             </label>
 
+            <label
+              htmlFor="CustomerCode"
+              className="inline-flex items-center cursor-pointer gap-2 fil_sec"
+            >
+              <input
+                type="checkbox"
+                checked={custCode}
+                onChange={handleCustoCodeHideShow}
+                name="CustomerCode"
+                id="CustomerCode"
+              />
+              CustomerCode
+            </label>
+
             {/* Dynamic Hide/Show Fields */}
             {sortedPrintData
               ?.filter((x) => x.IsHideShowOption)
-              ?.map((item, index) => (
-                <label
-                  key={index}
-                  className="inline-flex items-center cursor-pointer gap-2 fil_sec"
-                >
-                  <input
-                    type="checkbox"
-                    checked={hideShowFields[item.value] ?? true}
-                    onChange={() => handleHideShowChange(item.value)}
-                  />
-                  {item.lable?.replace(/-$/, "")}
-                </label>
-              ))}
+              ?.map((item, index) => {
+                const displayLabel = item.lable
+                  ? item.lable.replace(/-$/, "")
+                  : item.HideShowLableName
+                    ? item.HideShowLableName
+                    : null;
+
+                if (!displayLabel) return null; // neither lable nor HideShowLableName exists
+
+                return (
+                  <label
+                    key={index}
+                    className="inline-flex items-center cursor-pointer gap-2 fil_sec"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={hideShowFields[item.value] ?? true}
+                      onChange={() => handleHideShowChange(item.value)}
+                    />
+                    {displayLabel}
+                  </label>
+                );
+              })}
           </div>
 
           <div className="pagination">

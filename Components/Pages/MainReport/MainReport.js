@@ -8,6 +8,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import "react-datepicker/dist/react-datepicker.css";
 import {
+  Alert,
   Button,
   Checkbox,
   CircularProgress,
@@ -22,16 +23,20 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
+  Modal,
   Paper,
   Popover,
   Select,
+  Slide,
+  Snackbar,
   styled,
   Switch,
+  TextField,
   Typography,
 } from "@mui/material";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, CheckCircle2, CheckSquare, Eye, Menu, ShieldAlert, Square, ToggleLeft, ToggleRight, X, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CheckSquare, Eye, Menu, Recycle, ShieldAlert, Square, ToggleLeft, ToggleRight, Trash, X, XCircle } from "lucide-react";
 import { GoCopy } from "react-icons/go";
 import Warper from "@/Components/warper";
 import { CallApi } from "@/API/CallApi/CallApi";
@@ -45,6 +50,7 @@ import ImageView from "@/Components/Pages/MainReport/ImageView/ImageView";
 import ActionFilter from "@/Components/Pages/MainReport/ActionFilter/ActionFilter";
 import IframAction from "@/Components/Pages/MainReport/IframAction/IframAction";
 import BarChartView from "@/Components/Pages/MainReport/ChartView/BarChartView";
+import MultiBarChartView from "@/Components/Pages/MainReport/ChartView/MultiBarChartView";
 import PieChartView from "@/Components/Pages/MainReport/ChartView/PieChartView";
 import AreaChartView from "@/Components/Pages/MainReport/ChartView/AreaChart";
 import LongCallChart from "@/Components/Pages/MainReport/ChartView/LongCallChart";
@@ -63,6 +69,7 @@ import { MdDoNotDisturb } from "react-icons/md";
 import { IoMdAddCircleOutline } from "react-icons/io";
 import { GiReturnArrow } from "react-icons/gi";
 import { ReportCallApi } from "@/API/ReportCommonAPI/ReportCallApi";
+import RouterContent from "@/Components/RouterContent";
 
 const ICON_LIST = [
   {
@@ -221,9 +228,14 @@ export default function MainReport({
   otherPrintOptionShowData,
   authActionDropdownMaster,
   isPrintColumn,
-  isPrintColumnData
+  isPrintColumnData,
+  reportsExcelRights,
+  datefilterServerSide,
+  onShowMoreData,
+  hasMoreData,
+  loadingMore,
+  clearAllDataSignal,
 }) {
-
   const noFoundImg = "./images/noFound.jpg";
   const [isLoading, setIsLoading] = useState(isLoadingChek);
   const [showImageView, setShowImageView] = useState(false);
@@ -303,7 +315,8 @@ export default function MainReport({
   const [activeIframeTab, setActiveIframeTab] = useState(null);
   const [svgFilter, setSvgFilter] = useState(null);
   const [isAskOptigoAiPanelOpen, setIsAskOptigoAiPanelOpen] = useState(false);
-  const panelSpace = isAskOptigoAiPanelOpen ? "380px" : "0px";
+  const [optigoPanelWidth, setOptigoPanelWidth] = useState(400);
+  const panelSpace = isAskOptigoAiPanelOpen ? `${optigoPanelWidth}px` : "0px";
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedAuthRow, setSelectedAuthRow] = useState(null);
@@ -311,7 +324,27 @@ export default function MainReport({
   const [authLoadingCell, setAuthLoadingCell] = useState(null); // keep state only
   const authLoadingCellRef = useRef(null); // keep ref too
   const sortedFilteredRowsRef = useRef([]);
-  const filteredRowsRef = useRef(null);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteModalOpencheck, setDeleteModalOpencheck] = useState(false);
+  const [selectedDeleteRow, setSelectedDeleteRow] = useState(null);
+  const [selectedDeleteCol, setSelectedDeleteCol] = useState(null);
+  const [deletedRowIds, setDeletedRowIds] = useState(() => new Set());
+  useEffect(() => {
+    setDeletedRowIds(new Set());
+  }, [allRowData]);
+  const [openPopupReport, setOpenPopupReport] = useState(false);
+  const [openPopupReportid, setOpenPopupReportid] = useState(null);
+  const [openPopupReportParam, setOpenPopupReportParam] = useState(null);
+
+  const [authInputOverrides, setAuthInputOverrides] = useState(new Map());
+
+
+  const handleClosePopupReport = () => {
+    setOpenPopupReport(false);
+    setOpenPopupReportid(null);
+    setOpenPopupReportParam(null);
+  };
 
   const handleSaveAreaChart = () => {
     setSavedAreaCharts((prev) => [
@@ -332,36 +365,6 @@ export default function MainReport({
     authLoadingCellRef.current = authLoadingCell;
   }, [authLoadingCell]);
 
-  const pathname =
-    typeof window !== "undefined" ? window.location.pathname : "";
-
-  const isOldHome = pathname.toLowerCase().endsWith("/home1.do");
-
-  const isNewHome =
-    pathname.toLowerCase().endsWith("/home.do") && !isOldHome;
-
-  function getCurrentBrowserUrl() {
-    try {
-      return window.top.location.href;
-    } catch (e) {
-      return window.location.href;
-    }
-  }
-  function getHomePageTypeFromBrowser() {
-    const url = getCurrentBrowserUrl().toLowerCase();
-    if (url.includes("/home1.do")) {
-      return "OLD";
-    }
-
-    if (url.includes("/home.do") || url.includes("/Home.do")) {
-      return "NEW";
-    }
-    return "UNKNOWN";
-  }
-
-  useEffect(() => {
-    setHomeType(getHomePageTypeFromBrowser());
-  }, []);
 
   const toggleDrawer = (newOpen) => () => {
     setSideFilterOpen(newOpen);
@@ -430,10 +433,9 @@ export default function MainReport({
         p: JSON.stringify(data),
         f: "DynamicReport ( Save User Activity Log )",
       };
-
       try {
         await CallApi(body);
-        sessionStorage.removeItem(key); // ✅ clear after save
+        sessionStorage.removeItem(key);
       } catch (err) {
         console.error("Activity log save failed", err);
       }
@@ -493,11 +495,22 @@ export default function MainReport({
         ...prev,
         dateRange: { startDate: "", endDate: "" },
       }));
+      // ✅ still mark first load as ready so the date-filter useEffect can fire
+      setTimeout(() => {
+        firstTimeLoadedRef.current = true;
+      }, 0);
       return;
     }
     const formattedDate = formatToMMDDYYYY(now);
     fetchData(formattedDate, formattedDate);
-    if (showReportMaster || serverSideData == true) {
+    if (datefilterServerSide) {
+      setFilterState({
+        dateRange: {
+          startDate: now,
+          endDate: now,
+        },
+      });
+    } else if (showReportMaster || serverSideData == true) {
       setFilterState({
         dateRange: {
           startDate: new Date("1990-01-01T18:30:00.000Z"),
@@ -520,12 +533,41 @@ export default function MainReport({
   useEffect(() => {
     if (!firstTimeLoadedRef.current) return;
     const { startDate: s, endDate: e } = filterState.dateRange;
-    if (s && e) {
+
+    if (datefilterServerSide) {
+      // ✅ For server-side date filtering, always call onSearchFilter.
+      // When range is cleared (e.g. defaultShowAllData or "All Data" click),
+      // send empty FilterStartDate/FilterEndDate so the API returns all data.
+      const formatServerDate = (d) => {
+        if (!d) return "";
+        const dateObj = new Date(d);
+        if (isNaN(dateObj.getTime())) return "";
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+        const dd = String(dateObj.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
+      const FilterStartDate = formatServerDate(s);
+      const FilterEndDate = formatServerDate(e);
+
+      if (typeof onSearchFilter === "function") {
+        onSearchFilter(
+          {
+            FilterStartDate,
+            FilterEndDate,
+          },
+          "0"
+        );
+      }
+    } else {
+      // ✅ Client-side date filtering: skip when range is empty (All Data)
+      if (!s || !e) return;
       const formattedStart = formatToMMDDYYYY(new Date(s));
       const formattedEnd = formatToMMDDYYYY(new Date(e));
       fetchData(formattedStart, formattedEnd);
     }
-  }, [filterState.dateRange]);
+  }, [filterState.dateRange, datefilterServerSide]);
 
   const fetchData = async () => {
     try {
@@ -760,6 +802,7 @@ export default function MainReport({
         FormName: "DynamicReport ( data )",
       }),
       p: JSON.stringify({
+        isAuthActionId: Number(selectedAuthCol?.IsAuthActionIcon),
         ReportId: reportId,          // report id from session
         IsActionData: fieldName,     // field name e.g. "UserId"
         State: currentVal,           // 0 or 1
@@ -770,7 +813,6 @@ export default function MainReport({
 
     try {
       const response = await ReportCallApi(body, spNumber);
-      console.log('ToggleAuth response:',);
       if (response?.rd[0]?.stat == 1) {
 
       }
@@ -840,6 +882,145 @@ export default function MainReport({
       }
     } catch (err) {
       console.error("DropdownSave API failed:", err);
+    }
+  };
+
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState("");
+  const AuthCustomInputCell = ({ initialValue, onCommit, regexType }) => {
+    const [value, setValue] = useState(initialValue ?? "");
+    useEffect(() => {
+      setValue(initialValue ?? "");
+    }, [initialValue]);
+
+    const mobileRegex = /^[0-9]{10,12}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const isValid = (val) => {
+      if (String(regexType) === "1") return mobileRegex.test(val);
+      if (String(regexType) === "2") return emailRegex.test(val);
+      return true;
+    };
+
+    const handleChange = (e) => {
+      let val = e.target.value;
+      if (String(regexType) === "1") {
+        val = val.replace(/[^0-9]/g, "").slice(0, 12);
+      }
+      setValue(val);
+    };
+
+    const commit = () => {
+      if (value === (initialValue ?? "")) return;
+
+      if (!isValid(value)) {
+        setSnackbarMsg(
+          String(regexType) === "1"
+            ? "Please enter a valid mobile number"
+            : String(regexType) === "2"
+              ? "Please enter a valid email address"
+              : "Invalid entry"
+        );
+        setSnackbarOpen(true);
+        setValue(initialValue ?? ""); // revert to original value
+        return;
+      }
+
+      onCommit(value);
+    };
+
+    return (
+      <>
+        <TextField
+          size="small"
+          value={value}
+          type={
+            String(regexType) === "1"
+              ? "tel"
+              : String(regexType) === "2"
+                ? "email"
+                : "text"
+          }
+          onClick={(e) => e.stopPropagation()}
+          onChange={handleChange}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.target.blur();
+            }
+          }}
+          sx={{
+            width: "80%",
+            mt: "-5px",
+            "& .MuiOutlinedInput-input": {
+              padding: "3px !important",
+              fontSize: '13px'
+            },
+          }}
+          inputProps={{ style: { height: "28px", padding: "0 8px" } }}
+        />
+
+      </>
+    );
+  };
+
+  const handleCustomAuthInputChange = async (row, col, newValue) => {
+    const fieldName = col.FieldName;
+    const rowId = row.id;
+
+    const authDataFieldName = col.IsAuthActionData;
+    const recordId = row[authDataFieldName];
+
+    authLoadingCellRef.current = { rowId, fieldName };
+    setAuthLoadingCell({ rowId, fieldName });
+
+    const keyPrefix = `${pid}_`;
+    const matchingKey = Object.keys(sessionStorage).find((key) =>
+      key.startsWith(keyPrefix)
+    );
+    const reportId = matchingKey ? matchingKey.split("_")[1] : "";
+    let AllData = JSON.parse(sessionStorage.getItem("reportVarible"));
+
+    const body = {
+      con: JSON.stringify({
+        id: "",
+        mode: "ToggelAction",
+        appuserid: AllData?.LUId,
+        IPAddress: clientIpAddress,
+        FormName: "DynamicReport ( data )",
+      }),
+      p: JSON.stringify({
+        isAuthActionId: Number(col?.IsAuthActionIcon), // 4
+        ReportId: reportId,
+        IsActionData: fieldName,
+        State: newValue,
+        RecordID: recordId,
+      }),
+      f: "DynamicReport ( data )",
+    };
+
+    try {
+      const response = await ReportCallApi(body, spNumber);
+      if (response?.rd[0]?.stat == 1) {
+        if (recordId != null && recordId !== "") {
+          setAuthInputOverrides((prev) => {
+            const next = new Map(prev);
+            next.set(`${recordId}||${fieldName}`, newValue);
+            return next;
+          });
+        }
+        setFilteredRows((prev) =>
+          prev.map((r) =>
+            r.id === rowId ? { ...r, [fieldName]: newValue } : r
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Custom auth input save failed:", err);
+    } finally {
+      authLoadingCellRef.current = null;
+      setAuthLoadingCell(null);
     }
   };
 
@@ -918,6 +1099,13 @@ export default function MainReport({
           IsAuthActionIcon: col?.IsAuthActionIcon,
           IsAuthActionData: col?.IsAuthActionData,
           IsAuthActionDropdown: col?.IsAuthActionDropdown,
+          IsAuthActionInputRegex: col?.IsAuthActionInputRegex,
+          IframeHeight: col?.IframeHeight,
+          IframeWidth: col?.IframeWidth,
+          OpenPopUpReport: col?.OpenPopUpReport,
+          PopUpPageid: col?.PopUpPageid,
+          PopUpReportName: col?.PopUpReportName,
+          PopUpParamiter: col?.PopUpParamiter,
           filterTypes: [
             toBool(col.NormalFilter) && "NormalFilter",
             toBool(col.MultiSelection) && "MultiSelection",
@@ -1046,6 +1234,21 @@ export default function MainReport({
                     if (isLoading) return;
                     setSelectedAuthRow(params.row);
                     setSelectedAuthCol(col);
+                    if (Number(col?.IsAuthActionIcon) == 4) return;
+                    if (Number(col?.IsAuthActionIcon) == 5) {
+                      setSelectedDeleteRow(params.row);
+                      setSelectedDeleteCol(col);
+                      setDeleteModalOpencheck(true);
+                      setDeleteModalOpen(true);
+                      return;
+                    }
+                    if (Number(col?.IsAuthActionIcon) == 6) {
+                      setSelectedDeleteRow(params.row);
+                      setSelectedDeleteCol(col);
+                      setDeleteModalOpencheck(false)
+                      setDeleteModalOpen(true);
+                      return;
+                    }
                     setAuthModalOpen(true);
                   }}
                   style={{
@@ -1078,6 +1281,19 @@ export default function MainReport({
                       }
                       label=""
                     />
+                  ) : Number(col?.IsAuthActionIcon) == 4 ? (
+                    <AuthCustomInputCell
+                      key={`${params.row.id}-${col.FieldName}`}
+                      initialValue={liveValue}
+                      regexType={col.IsAuthActionInputRegex}
+                      onCommit={(newValue) => {
+                        handleCustomAuthInputChange(params.row, col, newValue);
+                      }}
+                    />
+                  ) : Number(col?.IsAuthActionIcon) == 5 ? (
+                    <Trash size={20} color="#ef4444" strokeWidth={2.5} />
+                  ) : Number(col?.IsAuthActionIcon) == 6 ? (
+                    <Recycle size={25} color="#2e7d32" strokeWidth={3} />
                   ) : isActive ? (
                     selectedIconGroup?.activeIcon || (
                       <CheckCircle2 size={20} color="#22c55e" strokeWidth={2.5} />
@@ -1127,7 +1343,6 @@ export default function MainReport({
                 } else {
                   const isoNaiveMatch = typeof params.value === "string" &&
                     params.value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?$/);
-
                   if (isoNaiveMatch) {
                     const [, year, month, day, hour, minute, second] = isoNaiveMatch;
 
@@ -1398,11 +1613,48 @@ export default function MainReport({
               const priorityColumn = allColumData?.find(
                 (x) => x.IsPriorityColumn === "True"
               );
-              if (!priorityColumn) return params.value;
-              const priorityId = params?.row?.[priorityColumn.FieldName];
+              const priorityId = priorityColumn ? params?.row?.[priorityColumn.FieldName] : null;
               const priorityObj = colorMaster?.find((x) => x.id == priorityId);
               const bg = priorityObj?.colorcode ?? "inherit";
               const font = priorityObj?.fontcolorcode ?? "inherit";
+
+              const innerContent = col.HrefLink == "True" ? (
+                col.HyperlinkShowButton ? (
+                  <Button
+                    style={{
+                      backgroundColor: "#cdd5ff",
+                      height: "25px",
+                      color: "#8068fb",
+                      fontSize: '12px'
+                    }}
+                    onClick={() => handleCellClick(params, params?.colDef?.ColId)}
+                  >
+                    {params.value}
+                  </Button>
+                ) : (
+                  <a
+                    style={{
+                      color: font !== "inherit" ? font : "blue",
+                      textDecoration: "underline",
+                      fontSize: col.FontSize || "inherit",
+                      cursor: "pointer",
+                      width: "120px",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                      display: "flex",
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '20px',
+                      width: 'fit-content'
+                    }}
+                    onClick={() => handleCellClick(params, params?.colDef?.ColId)}
+                  >
+                    {params.value}
+                  </a>
+                )
+              ) : (
+                <span>{params.value}</span>
+              );
 
               return (
                 <span
@@ -1412,10 +1664,12 @@ export default function MainReport({
                     fontSize: col.FontSize || "12px",
                     padding: "3px 6px",
                     borderRadius: "15px",
-                    fontWeight: col?.FontWeight
+                    fontWeight: col?.FontWeight,
+                    display: "inline-flex",
+                    alignItems: "center",
                   }}
                 >
-                  {params.value}
+                  {innerContent}
                 </span>
               );
             }
@@ -1452,6 +1706,24 @@ export default function MainReport({
                   {displayValue}
                 </a>
               )
+            ) : col.OpenPopUpReport == true ? (
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "blue",
+                  textDecoration: "underline",
+                  fontSize: col.FontSize || "inherit",
+                  padding: "0px",
+                  cursor: "pointer",
+                  width: "120px",
+                  textOverflow: "ellipsis",
+                  overflow: "hidden",
+                }}
+                onClick={() => openModelNewreport(params)}
+              >
+                {displayValue}
+              </a>
             ) : (
               <span>{displayValue}</span>
             );
@@ -1575,20 +1847,18 @@ export default function MainReport({
           return (
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
                 width: "100%",
                 height: "100%",
+                display: 'flex',
+                gap: 5,
+                justifyContent: col?.align,
+                alignItems: 'center'
               }}
             >
-              <p style={{ minWidth: '60px' }}>
-                {original}
-              </p>
-
+              {original}
               {DynamicIcon && (
                 <DynamicIcon
-                  size={16}
+                  size={25}
                   style={{ flexShrink: 0, color: 'white', backgroundColor: '#7367F0', padding: '5px', borderRadius: '50px' }}
                 />
               )}
@@ -1665,7 +1935,6 @@ export default function MainReport({
     //   srColumn,
     //   ...columnDataWithIcon.filter(col => {
     //     if (col.HideColumn === "True") return false;
-    //     console.log('col.IsRightBase: ', col.IsRightBase);
     //     // if (isRightBaseColum === 0 && col.IsRightBase === true) return false;
     //     return true;
     //   })
@@ -1696,9 +1965,7 @@ export default function MainReport({
     setColumnsHide([srColumn, ...visibleColumnsFilter]);
 
     sortedFilteredRowsRef.current = getSortedFilteredRows();
-
   }, [allColumData, paginationModel, selectionModel, svgIconData]);
-
   // }, [allColumData, grupEnChekBox, paginationModel, selectionModel]);
 
   useEffect(() => {
@@ -1727,6 +1994,64 @@ export default function MainReport({
     }
   }, [sortModel, columns])
 
+
+  const handleDeleteAuth = async () => {
+    if (!selectedDeleteRow || !selectedDeleteCol) return;
+
+    const fieldName = selectedDeleteCol.FieldName;
+    const rowId = selectedDeleteRow.id;
+    const authDataFieldName = selectedDeleteCol.IsAuthActionData;
+    const recordId = selectedDeleteRow[authDataFieldName];
+
+    setDeleteModalOpen(false);
+
+    const keyPrefix = `${pid}_`;
+    const matchingKey = Object.keys(sessionStorage).find((key) =>
+      key.startsWith(keyPrefix)
+    );
+    const reportId = matchingKey ? matchingKey.split("_")[1] : "";
+    let AllData = JSON.parse(sessionStorage.getItem("reportVarible"));
+
+    const body = {
+      con: JSON.stringify({
+        id: "",
+        mode: "ToggelAction",
+        appuserid: AllData?.LUId,
+        IPAddress: clientIpAddress,
+        FormName: "DynamicReport ( data )",
+      }),
+      p: JSON.stringify({
+        isAuthActionId: Number(selectedDeleteCol?.IsAuthActionIcon),
+        ReportId: reportId,
+        IsActionData: fieldName,
+        State: 0,
+        RecordID: recordId,
+      }),
+      f: "DynamicReport ( data )",
+    };
+
+    try {
+      const response = await ReportCallApi(body, spNumber);
+      if (response?.rd[0]?.stat == 1) {
+        // Track the deleted row id so originalRows (useMemo) permanently
+        // excludes it. Row ids stay stable (allRowData is untouched), so the
+        // grid removes the correct row and it will NOT reappear when the
+        // filtering effect re-runs (e.g. checking a Sr# checkbox).
+        setDeletedRowIds((prev) => {
+          const next = new Set(prev);
+          next.add(rowId);
+          return next;
+        });
+        // Immediate UI update until originalRows/filteredRows recompute.
+        setFilteredRows((prev) => prev.filter((row) => row.id !== rowId));
+      }
+    } catch (err) {
+      console.error("DeleteAuth API failed:", err);
+    } finally {
+      setSelectedDeleteRow(null);
+      setSelectedDeleteCol(null);
+    }
+  };
 
   const buildMasterValueMap = (masterData) => {
     const map = {};
@@ -1773,25 +2098,39 @@ export default function MainReport({
   const originalRows = useMemo(() => {
     if (!allColumIdWiseName || !allRowData) return [];
 
-    return allRowData.map((row, index) => {
-      const formattedRow = {};
-      Object.keys(row).forEach((key) => {
-        const colName = allColumIdWiseName[0][key];
-        const colDef = allColumData?.find((c) => c.FieldName === colName);
-        if (colDef?.MasterId && colDef.MasterId !== 0) {
-          const rawValue = row[key];
-          const mappedValue = masterValueMap[colDef.MasterId]?.[rawValue] ?? rawValue;
-          formattedRow[colName] = mappedValue;
-        } else {
-          formattedRow[colName] = row[key];
-        }
-      });
-      return { id: index, ...formattedRow };
-    });
-  }, [allRowData, allColumIdWiseName, allColumData, masterValueMap]); // ✅ allColumData here
+    return allRowData
+      .map((row, index) => {
+        const formattedRow = {};
+        Object.keys(row).forEach((key) => {
+          const colName = allColumIdWiseName[0][key];
+          const colDef = allColumData?.find((c) => c.FieldName === colName);
+          if (colDef?.MasterId && colDef.MasterId !== 0) {
+            const rawValue = row[key];
+            const mappedValue = masterValueMap[colDef.MasterId]?.[rawValue] ?? rawValue;
+            formattedRow[colName] = mappedValue;
+          } else {
+            formattedRow[colName] = row[key];
+          }
+        });
+
+        // re-apply locally committed auth input values (icon 4) so the
+        // user's entered data survives All Data refetch / filter rebuilds
+        Object.values(allColumData || {}).forEach((c) => {
+          if (!c?.IsAuthAction || Number(c?.IsAuthActionIcon) !== 4) return;
+          const recId = formattedRow?.[c.IsAuthActionData];
+          if (recId == null || recId === "") return;
+          const key = `${recId}||${c.FieldName}`;
+          if (authInputOverrides.has(key)) {
+            formattedRow[c.FieldName] = authInputOverrides.get(key);
+          }
+        });
+        return { id: index, ...formattedRow };
+      })
+      .filter((row) => !deletedRowIds.has(row.id)); // exclude deleted rows
+  }, [allRowData, allColumIdWiseName, allColumData, masterValueMap, deletedRowIds, authInputOverrides]); // ✅ allColumData here
+
 
   const isFirstLoad = useRef(true);
-
   useEffect(() => {
     if (allColumData) {
       const dateCols = allColumData?.filter((col) => col.ColumnType == "Date");
@@ -1813,6 +2152,31 @@ export default function MainReport({
   const [filters, setFilters] = useState({});
   const [filtersShow, setFiltersShow] = useState({});
   const [filtersShowDraf, setFiltersShowDraf] = useState({});
+  const [gridSortedIds, setGridSortedIds] = useState(null);
+
+  // Jab tak grid mounted hai, uska real sorted order save karte raho
+  useEffect(() => {
+    if (showImageView || chartView) return; // grid unmounted hai, stale api use mat karo
+    const api = apiRef.current;
+    if (!api?.subscribeEvent) return;
+
+    const update = () => setGridSortedIds([...api.getSortedRowIds()]);
+    update();
+
+    const unsubscribe = api.subscribeEvent("sortedRowsSet", update);
+    return () => unsubscribe?.();
+  }, [showImageView, chartView, filteredRows, sortModel]);
+
+  const sortedRowsForViews = useMemo(() => {
+    if (!Array.isArray(filteredRows)) return [];
+    if (!gridSortedIds?.length) return filteredRows;
+
+    const rowMap = new Map(filteredRows.map((r) => [r.id, r]));
+    const ordered = gridSortedIds.map((id) => rowMap.get(id)).filter(Boolean);
+
+    // rows change ho gayi ho to safe fallback
+    return ordered.length === filteredRows.length ? ordered : filteredRows;
+  }, [filteredRows, gridSortedIds]);
 
   const applyMultiSort = (rows, model) => {
     if (!Array.isArray(rows) || !model?.length) return rows;
@@ -1837,12 +2201,10 @@ export default function MainReport({
             numeric: true,
             sensitivity: "base",
           });
-
         if (compareResult !== 0) {
           return sortItem.sort === "asc" ? compareResult : -compareResult;
         }
       }
-
       return 0;
     });
   };
@@ -1940,53 +2302,73 @@ export default function MainReport({
         }
       }
 
-      if (isMatch && !spliterReportShow && filterState && selectedDateColumn &&
+      // ✅ Client-side date filtering only when server-side date filtering is OFF
+      if (isMatch && !spliterReportShow && !datefilterServerSide && filterState && selectedDateColumn &&
         (masterKeyData?.MainDateFilter == "True" ||
           masterKeyData?.AllDataButton == "True")
       ) {
-
-        // "2025-12-31T10:16:49.000Z"
-        const toDateOnly = (d) => new Date(new Date(d).toDateString());
+        const toDateOnly = (d) => {
+          if (!d && d !== 0) return new Date(NaN);
+          if (d instanceof Date) {
+            return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          }
+          const str = String(d).trim();
+          const formattedMatch = str.match(/^(\d{1,2})\s([A-Za-z]{3,})\s(\d{4})$/);
+          if (formattedMatch) {
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const monthIdx = monthNames.indexOf(formattedMatch[2]);
+            if (monthIdx >= 0) {
+              return new Date(+formattedMatch[3], monthIdx, +formattedMatch[1]);
+            }
+          }
+          const dateObj = new Date(str);
+          if (!isNaN(dateObj.getTime())) {
+            return new Date(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate());
+          }
+          return new Date(NaN);
+        };
         const rowDate = toDateOnly(row[selectedDateColumn]);
         const parsedStart = toDateOnly(startDate);
         const parsedEnd = toDateOnly(endDate);
 
-        // const toUTCDateOnly = (d) =>
-        //   new Date(
-        //     Date.UTC(
-        //       new Date(d).getUTCFullYear(),
-        //       new Date(d).getUTCMonth(),
-        //       new Date(d).getUTCDate()
-        //     )
-        //   );
-        // const rowDate = toUTCDateOnly(row[selectedDateColumn]);
-        // const parsedStart = toUTCDateOnly(startDate);
-        // const parsedEnd = toUTCDateOnly(endDate);
+        // ✅ Only apply date filtering when a valid date range is selected.
+        // When "All Data" is clicked, startDate/endDate are cleared (""),
+        // so skip filtering — this shows rows with null/empty dates too.
+        const hasValidRange =
+          !isNaN(parsedStart.getTime()) && !isNaN(parsedEnd.getTime());
 
         if (
-          isNaN(rowDate.getTime()) ||
-          rowDate < parsedStart ||
-          rowDate > parsedEnd
+          hasValidRange &&
+          (isNaN(rowDate.getTime()) ||
+            rowDate < parsedStart ||
+            rowDate > parsedEnd)
         ) {
           isMatch = false;
         }
       }
 
       if (isMatch && commonSearch) {
-        const searchText = commonSearch.toLowerCase();
+        // ✅ Normalize spaces: collapse multiple spaces into one
+        const searchText = commonSearch.toLowerCase().trim().replace(/\s+/g, " ");
 
-        // only visible/searchable fields
         const searchableFields = columns
           ?.filter((col) => col.field !== "id")
           ?.map((col) => col.field);
 
-        const hasMatch = searchableFields.some((field) => {
-          const value = row[field];
+        const twoColumnFields = columns
+          ?.filter((col) => col.TwoColumnData && col.TwoColumnData !== "")
+          ?.map((col) => col.TwoColumnData);
 
-          return value
-            ?.toString()
-            .toLowerCase()
-            .includes(searchText);
+        const allSearchFields = [...new Set([...searchableFields, ...twoColumnFields])];
+
+        const hasMatch = allSearchFields.some((field) => {
+          const value = row[field];
+          if (!value) return false;
+
+          // ✅ Also normalize cell value spaces
+          const cellValue = value.toString().toLowerCase().trim().replace(/\s+/g, " ");
+
+          return cellValue.includes(searchText);
         });
 
         if (!hasMatch) {
@@ -2012,7 +2394,6 @@ export default function MainReport({
 
       return isMatch;
     });
-
     let rowsWithSrNo = newFilteredRows?.map((row, index) => ({
       ...row,
       srNo: index + 1,
@@ -2042,6 +2423,8 @@ export default function MainReport({
     const sortedRows = isMultiSortingEnabled
       ? applyMultiSort(rowsWithSrNo, multiSortModel)
       : rowsWithSrNo;
+
+    sortedFilteredRowsRef.current = sortedRows;
     if (masterKeyData?.GroupCheckBox == "True") {
       setFilteredRows(groupRows(sortedRows, grupEnChekBox));
     } else {
@@ -2129,6 +2512,26 @@ export default function MainReport({
         "*"
       );
     }
+  };
+
+  const openModelNewreport = (data) => {
+    const pageId = data?.colDef?.PopUpPageid;
+    const rawParamiter = data?.colDef?.PopUpParamiter;
+    let resolvedParamiter = rawParamiter;
+    if (rawParamiter && data?.row) {
+      const fieldNames = String(rawParamiter).split(",").map((f) => f.trim()).filter(Boolean);
+      if (fieldNames.length > 0) {
+        const resolvedObj = {};
+        fieldNames.forEach((fieldName) => {
+          resolvedObj[fieldName] = data.row[fieldName] ?? "";
+        });
+        resolvedParamiter = JSON.stringify([resolvedObj]);
+      }
+    }
+
+    setOpenPopupReportid(pageId);
+    setOpenPopupReportParam(resolvedParamiter);
+    setOpenPopupReport(true);
   };
 
   const saveReportActivity = (reportId, activity) => {
@@ -2264,11 +2667,19 @@ export default function MainReport({
   };
 
   const handlePrintNow = (currentPageItems, currentPage) => {
+    const page = currentPage ?? 1;
     setPreparingPrint(true);
-    setCurrentPrintPage(currentPage ?? 1);
+    setCurrentPrintPage(page);
 
-    // Preload all images FIRST, then show print view
-    const items = currentPageItems ?? getSortedFilteredRows();
+    // Only preload the images for the page that is actually printed
+    // (must match itemsPerPage in Print1JewelleryBook), not the whole dataset.
+    const PRINT_ITEMS_PER_PAGE = 1000;
+    const allItems = currentPageItems ?? printData;   // ✅ pehle: getSortedFilteredRows()
+    const startIdx = (page - 1) * PRINT_ITEMS_PER_PAGE;
+    const items = currentPageItems
+      ? allItems
+      : allItems.slice(startIdx, startIdx + PRINT_ITEMS_PER_PAGE);
+
     const imageUrls = [...new Set(
       items
         .map(row => row?.ImgUrl)
@@ -2465,6 +2876,8 @@ export default function MainReport({
     }
   };
 
+
+
   if (showPrintView) {
     return (
       <div
@@ -2509,7 +2922,7 @@ export default function MainReport({
           </Button>
         </div>
         <Print1JewelleryBook
-          visibleItemsMain={getSortedFilteredRows()}  // ✅ was: printData
+          visibleItemsMain={printData}   // ✅ was: getSortedFilteredRows()
           onPrintClick={handlePrintNow}
           preparingPrint={preparingPrint}
           currentPrintPage={currentPrintPage}
@@ -2523,7 +2936,7 @@ export default function MainReport({
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div
-        className="dynamic_sample_report_main"
+        className="dynamic_sample_report_main dx-main-report-wrap"
         style={{
           display: "flex",
           flexDirection: "column",
@@ -2542,6 +2955,26 @@ export default function MainReport({
         }}
         ref={gridContainerRef}
       >
+
+        <Dialog
+          open={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>Confirm {deleteModalOpencheck ? "Delete" : "Restore"}</DialogTitle>
+          <DialogContent>
+            {deleteModalOpencheck ? "Are you sure you want to delete this record?" : " After restoring the quotation, if no process is performed on the quotation on the same day, it will be archived again at midnight."}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteModalOpen(false)} color="inherit">
+              No
+            </Button>
+            <Button variant="contained" color={deleteModalOpencheck ? "error" : "success"} onClick={handleDeleteAuth}>
+              {deleteModalOpencheck ? "Yes, Delete" : "Yes, Restore"}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Dialog
           open={authModalOpen}
@@ -2630,6 +3063,60 @@ export default function MainReport({
             isPageChanging={isPageChanging}
           />
         </Drawer>
+
+
+        <Modal
+          open={openPopupReport}
+          onClose={handleClosePopupReport}
+          disableEnforceFocus
+          disableAutoFocus
+          hideBackdrop
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            border: "0px",
+            outline: "0px",
+            pointerEvents: "none",
+          }}
+        >
+          <Slide in={openPopupReport} direction="down" timeout={500}>
+            <Box
+              sx={{
+                bgcolor: "background.paper",
+                boxShadow: 24,
+                borderRadius: 2,
+                width: "97%",
+                maxHeight: "95vh",
+                overflowY: "auto",
+                border: "none",
+                outline: "none",
+                pointerEvents: "auto",
+                position: "relative",
+              }}
+            >
+              <IconButton
+                onClick={handleClosePopupReport}
+                sx={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  zIndex: 1300,
+                  bgcolor: "#222",
+                  color: "white",
+                  "&:hover": { bgcolor: "#333" },
+                }}
+                size="small"
+              >
+                <X size={18} />
+              </IconButton>
+              <RouterContent
+                newReportId={openPopupReportid}
+                popupParamiter={openPopupReportParam}
+              />
+            </Box>
+          </Slide>
+        </Modal>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <Dialog
             open={Boolean(activeActionColumn)}
@@ -2648,6 +3135,17 @@ export default function MainReport({
             />
           </Dialog>
         </LocalizationProvider>
+        {/* <div>
+          <p
+            style={{
+              margin: "0px",
+              backgroundColor: "#5c6bdc",
+              color: "white",
+              textAlign: "center",
+              padding: "3px",
+              fontSize: "12px"
+            }}>This report is the under maintenace so dont compare the data on it</p>
+        </div> */}
         <div style={{ flexShrink: 0 }}>
           <SummaryEndFilteredValue
             setSummaryColumns={setSummaryColumns}
@@ -2669,7 +3167,15 @@ export default function MainReport({
             setOtherReprot={setOtherReport}
             refreshFunction={refreshFunction}
             setFilteredValue={setFilteredValue}
-            onAskOptigoAiPanelToggle={setIsAskOptigoAiPanelOpen}
+            setFiltersShow={setFiltersShow}
+            setFilters={setFilters}
+            setDraftFilters={setDraftFilters}
+            onAskOptigoAiPanelToggle={(open) => {
+              setIsAskOptigoAiPanelOpen(open);
+              if (open) setOptigoPanelWidth(400); // always open at default width
+            }}
+            optigoPanelWidth={optigoPanelWidth}
+            onOptigoPanelWidthChange={setOptigoPanelWidth}
             isFormulaBasedSummary={isFormulaBasedSummary}
             summaryViewData={summaryViewData}
             isLoading={isLoading}
@@ -2696,6 +3202,7 @@ export default function MainReport({
             setDraftFilters={setDraftFilters}
             setFilteredValue={setFilteredValue}
             showReportMaster={showReportMaster}
+            datefilterServerSide={datefilterServerSide}
             onSearchFilter={onSearchFilter}
             saveReportActivity={saveReportActivity}
             commonSearch={commonSearch}
@@ -2732,6 +3239,7 @@ export default function MainReport({
             highlightedIndex={highlightedIndex}
             setHighlightedIndex={setHighlightedIndex}
             filtersShowDraf={filtersShowDraf}
+            filtersShow={filtersShow}
             setOtherReprot={setOtherReport}
             otherReport={otherReport}
             setAllColumData={setAllColumData}
@@ -2753,7 +3261,15 @@ export default function MainReport({
             otherPrintOptionShow={otherPrintOptionShow}
             otherPrintOptionShowData={otherPrintOptionShowData}
             isRightBaseColumMaster={isRightBaseColumMaster}
-          />}
+            reportsExcelRights={reportsExcelRights}
+            spNumber={spNumber}
+            onShowMoreData={onShowMoreData}
+            hasMoreData={hasMoreData}
+            loadingMore={loadingMore}
+            clearAllDataSignal={clearAllDataSignal}
+            sortedRowsForViews={sortedRowsForViews}   // ✅ new
+          />
+        }
 
         {activeIframeTab ? (
           <div
@@ -2779,7 +3295,7 @@ export default function MainReport({
           ref={gridRef}
           style={{
             height: "100%",
-            margin: homeType == "NEW" ? "5px 10px 5px 10px" : "5px 10px 5px 10px",
+            margin: homeType == "NEW" ? "5px 10px 5px 10px" : "5px 5px 50px 5px",
             overflow: "auto",
             transition: "opacity 0.3s",
             opacity: isPageChanging ? 0.5 : 1,
@@ -2790,12 +3306,18 @@ export default function MainReport({
           {showImageView ? (
             <div>
               <ImageView
-                // filteredRows={filteredRows}
-                filteredRows={getSortedFilteredRows()}
+                // Grid is unmounted in image view, so getSortedFilteredRows
+                // (which relies on the grid apiRef) returns an unstable row set
+                // on re-render and breaks selection. filteredRows is already
+                // sorted/grouped and stable across selection changes.
+                filteredRows={sortedRowsForViews}
                 sortModel={sortModel}
                 columns={columns}
                 imageViewData={imageViewData}
                 isLoading={isLoading}
+                masterKeyData={masterKeyData}
+                selectionModel={selectionModel}
+                setSelectionModel={setSelectionModel}
               />
             </div>
           ) : chartView ? (
@@ -2887,6 +3409,7 @@ export default function MainReport({
                 </Grid>
               }
 
+
               {pid == 18418 &&
                 savedAreaCharts.map((chart) => (
                   <Grid item md={12} xs={12} key={chart.id}>
@@ -2900,6 +3423,19 @@ export default function MainReport({
                     </ChartCard>
                   </Grid>
                 ))
+              }
+
+              {pid == 18418 &&
+                <Grid item md={12} xs={12}>
+                  <ChartCard>
+                    <MultiBarChartView
+                      filteredRows={filteredRows}
+                      sortModel={sortModel}
+                      columns={columns}
+                      title="Current Area Chart"
+                    />
+                  </ChartCard>
+                </Grid>
               }
 
               {pid == 18418 &&
@@ -2954,8 +3490,10 @@ export default function MainReport({
                 autoHeight={false}
                 columnBuffer={17}
                 rowHeight={37}
+                headerHeight={45}
+                columnHeaderHeight={45}
                 // getRowClassName={(params) =>
-                //   params.row.IsClub === 1 ? "yellow-row" : ""
+                //   params.row.IsClub === 1 ? "highlight-row" : ""
                 // }
                 sortingOrder={["asc", "desc"]}
                 sortingMode={isMultiSortingEnabled ? "server" : "client"}
@@ -3025,15 +3563,45 @@ export default function MainReport({
                 sx={{
                   height: "100%",    // ✅ fills the flex parent
                   width: "100%",
+                  borderRadius: "4px",
+                  border: "1px solid rgba(224, 224, 224, 1)",
+                  "& .MuiDataGrid-columnHeaders, & .MuiDataGrid-columnHeader, & .MuiDataGrid-columnHeaderRow": {
+                    fontFamily: "var(--font-geist), sans-serif !important",
+                    fontWeight: 700,
+                    fontSize: "0.78rem !important",
+                    color: "#334155 !important",
+                    letterSpacing: "0.01em",
+                    minHeight: "42px !important",
+                    maxHeight: "42px !important",
+                    backgroundColor: "#fff !important",
+                    outline: "none !important",
+                    textTransform: "capitalize",
+                    // boxShadow:'rgba(0, 0, 0, 0.1) 0px 2px 6px, rgba(0, 0, 0, 0.06) 0px 1px 2px',
+                  },
+                  "& .MuiDataGrid-columnHeaderTitle": {
+                    fontWeight: 700,
+                    fontSize: "0.78rem !important",
+                    color: "#334155 !important",
+                    letterSpacing: "0.01em",
+                  },
+                  "& .MuiDataGrid-row--borderBottom": {
+                    backgroundColor: "#f0f0f023 !important",
+                  },
+                  "& .MuiDataGrid-row:hover": {
+                    backgroundColor: "#fff !important",
+                  },
+                  "& .MuiDataGrid-cell": {
+                    outline: "none !important",
+                  },
                   "& .MuiDataGrid-menuIcon": {
                     display: "none",
                   },
                   "& .MuiDataGrid-selectedRowCount": {
                     display: "none",
                   },
-                  "& .MuiDataGrid-columnHeaders": {
-                    fontWeight: 500,
-                  },
+                  // "& .MuiDataGrid-columnHeaders": {
+                  //   fontWeight: 500,
+                  // },
                   "& .MuiDataGrid-footerContainer": {
                     zIndex: 1300,
                     position: "relative",
@@ -3045,9 +3613,56 @@ export default function MainReport({
 
                   "& .MuiDataGrid-cell:focus-within": {
                     outline: 'none !important'
-                  }
-
-
+                  },
+                  "& .MuiTablePagination-actions": {
+                    "& .MuiIconButton-root": {
+                      padding: "6px",
+                      color: "#555",
+                    },
+                    "& .Mui-disabled": {
+                      opacity: 0.3,
+                    },
+                  },
+                  "& .MuiSvgIcon-root": {
+                    fontSize: "20px",
+                  },
+                  "& .MuiDataGrid-cell": {
+                    outline: "none !important",
+                  },
+                  "& .MuiDataGrid-footerContainer": {
+                    backgroundColor: "#fff",
+                    paddingY: 1,
+                    minHeight: "45px !important",
+                    maxHeight: "45px !important",
+                    height: "45px !important",
+                    backgroundColor: "#fff",
+                    padding: "0 8px !important", // remove your paddingY: 1
+                  },
+                  "& .MuiTablePagination-root": {
+                    fontSize: 13,
+                  },
+                  "& .MuiTablePagination-toolbar": {
+                    minHeight: "auto",
+                    padding: 0,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                  },
+                  "& .MuiTablePagination-spacer": {
+                    display: "none",
+                  },
+                  "& .MuiTablePagination-selectLabel": {
+                    margin: "0 8px 0 0",
+                    fontSize: "0.8rem",
+                  },
+                  "& .MuiTablePagination-select": {
+                    fontSize: "0.8rem",
+                    padding: "2px 8px",
+                  },
+                  "& .MuiTablePagination-displayedRows": {
+                    fontSize: "0.7rem",
+                    margin: "0 8px",
+                  },
 
                 }}
               />
@@ -3231,6 +3846,26 @@ export default function MainReport({
             />
           </div>
         </Dialog>
+
+
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={(e, reason) => {
+            if (reason === "clickaway") return;
+            setSnackbarOpen(false);
+          }}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity="error"
+            variant="filled"
+            sx={{ width: "100%" }}
+          >
+            {snackbarMsg}
+          </Alert>
+        </Snackbar>
 
         {status500 && (
           <div

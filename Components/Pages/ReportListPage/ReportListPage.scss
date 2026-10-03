@@ -29,22 +29,7 @@
   height: 80vh;
 }
 
-  &::-webkit-scrollbar {
-    width: 3px;
-  }
 
-  &::-webkit-scrollbar-track {
-    background: transparent; // keep it clean
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgb(86, 74, 252);
-    border-radius: 10px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgb(66, 54, 220);
-  }
 
   /* 🔹 Firefox */
   scrollbar-width: thin; /* makes it thinner */

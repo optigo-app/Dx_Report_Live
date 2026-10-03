@@ -17,9 +17,10 @@ const MultiReportPage = lazy(() =>
   import("@/Components/Pages/MultiReport/MultiReportPage")
 );
 
-export default function RouterContent() {
+export default function RouterContent({ newReportId, popupParamiter }) {
   const searchParams = useSearchParams();
-  const pid = searchParams.get("pid");
+  const urlPid = searchParams.get("pid");
+  const pid = newReportId || urlPid;
   const CN = searchParams.get("CN");
   const newToken = searchParams.get("Token");
 
@@ -33,7 +34,9 @@ export default function RouterContent() {
   const [isFormulaBasedSummary, setIsFormulaBasedSummary] = useState(false);
   const [isPrintColumn, setIsPrintColumn] = useState(false);
   const [isPrintColumnData, setIsPrintColumnData] = useState(false);
+  const [reportsExcelRights, setReportsExcelRights] = useState();
   const [spliterReportFirstPanel, setSpliterReportFirstPanel] = useState();
+  const [datefilterServerSide, setDatefilterServerSide] = useState();
   const [authActionDropdownMaster, setAuthActionDropdownMaster] = useState();
   const [spliterReportFirstPanelFilter, setSpliterReportFirstPanelFilter] = useState();
   const [spliterReportSecondPanelSecondoption, setSpliterReportSecondPanelSecondoption] = useState();
@@ -66,6 +69,14 @@ export default function RouterContent() {
     getClientIpAddress();
   }, []);
 
+
+  useEffect(() => {
+    setReady(false);
+    setTokenMissing(false);
+    setShowMultiReport(false);
+    setReportId(null);
+    setSpNumber(null);
+  }, [newReportId]);
 
   useEffect(() => {
     const initializeAndFetchReport = async () => {
@@ -163,6 +174,7 @@ export default function RouterContent() {
         setCurrencyMaster(response?.rd3);
         setOtherPrintOptionShowData(response?.rd5)
         setAuthActionDropdownMaster(response?.rd6)
+        setReportsExcelRights(response?.rd8)
         setIsRightBaseColum(response?.rd9);
         const masterName = response?.rd?.[0]?.PrintMasterName;
         const matched = response?.rd4?.find(
@@ -178,6 +190,7 @@ export default function RouterContent() {
           setSpliterReportShow(data.IsSpliterReport);
           setLargeDataShow(data.ServerSideDateWiseFilter);
           setSpliterReportFirstPanel(data.SpliterFirstPanel);
+          setDatefilterServerSide(data?.IsDateFilterServerSide);
           setSpliterReportSecondPanel(data.SpliterSecondPanel);
           setIsFormulaBasedSummary(data.IsFormulaBasedSummary);
           setReportName(data.ReportName);
@@ -295,7 +308,10 @@ export default function RouterContent() {
         authActionDropdownMaster={authActionDropdownMaster}
         isPrintColumn={isPrintColumn}
         isPrintColumnData={isPrintColumnData}
-      />
+        reportsExcelRights={reportsExcelRights}
+        datefilterServerSide={datefilterServerSide}
+        popupParamiter={popupParamiter}
+     />
     </Suspense>
   );
 }

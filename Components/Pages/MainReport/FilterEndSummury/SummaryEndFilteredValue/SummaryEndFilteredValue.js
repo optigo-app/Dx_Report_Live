@@ -1,10 +1,10 @@
 import { Button, Dialog, IconButton, Tooltip, Box, Typography, Grid, Card, Skeleton } from "@mui/material";
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { ArrowLeft, RotateCcw, X } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import ColumnRearrange from "../../ColumnRearrange/ColumnRearrange";
 import { AiOutlineSetting } from "react-icons/ai";
 import './index.scss'
-import AskOptigoAiDrawer from "./AskOptigoAiDrawer";
+import OptigoBotDrawer from "./OptigoBot/OptigoBotDrawer";
 import { useSearchParams } from "next/navigation";
 
 // ─── helper: safely evaluate formula string with column totals ────────────────
@@ -47,8 +47,13 @@ const SummaryEndFilteredValue = ({
   setOtherReprot,
   refreshFunction,
   setFilteredValue,
+  setFiltersShow,
+  setFilters,
+  setDraftFilters,
   activeIframeTab,
   onAskOptigoAiPanelToggle,
+  optigoPanelWidth,
+  onOptigoPanelWidthChange,
   isFormulaBasedSummary,
   summaryViewData,
   isLoading,
@@ -56,6 +61,7 @@ const SummaryEndFilteredValue = ({
 }) => {
   const [openPopup, setOpenPopup] = useState(false);
   const [openAskOptigoAi, setOpenAskOptigoAi] = useState(false);
+  const [rotationDeg, setRotationDeg] = useState(0);
   const searchParams = useSearchParams();
   const pid = searchParams.get("pid");
 
@@ -126,7 +132,7 @@ const SummaryEndFilteredValue = ({
 
     return (
       <Box sx={{ padding: { xs: "8px", sm: "12px" }, width: "100%", boxSizing: "border-box", flex: 1 }}>
-        <Grid container spacing={1} rowSpacing={2.5} alignItems="stretch">
+        <Grid container spacing={1} rowSpacing={1} alignItems="stretch">
 
           {/* ── existing column summaries ── */}
           {sortedSummaryColumns.map((col) => {
@@ -283,6 +289,57 @@ const SummaryEndFilteredValue = ({
   const handleAskOptigoAi = () => setOpenAskOptigoAi(true);
   const handleCloseAskOptigoAi = () => setOpenAskOptigoAi(false);
 
+  // ─── remove a single filter chip and clear it from all filter states ──────────
+  const handleRemoveFilter = (filterItem) => {
+    const headerName = filterItem?.name;
+    if (!headerName) return;
+
+    // map headerName (headerNamesingle) → FieldName using allColumData
+    const colMeta = Object.values(allColumData || {})?.find(
+      (c) => c?.HeaderName === headerName
+    );
+    const fieldName = colMeta?.FieldName || headerName;
+
+    // 1️⃣ remove from filtersShow (keyed by headerNamesingle) → stops useEffect re-adding
+    if (setFiltersShow) {
+      setFiltersShow((prev) => {
+        const copy = { ...prev };
+        delete copy[headerName];
+        return copy;
+      });
+    }
+
+    // 2️⃣ remove from filters (keyed by FieldName) → stops row filtering
+    if (setFilters) {
+      setFilters((prev) => {
+        const copy = { ...prev };
+        delete copy[fieldName];
+        // also clear range filter variants
+        delete copy[`${fieldName}_min`];
+        delete copy[`${fieldName}_max`];
+        return copy;
+      });
+    }
+
+    // 3️⃣ remove from draftFilters (keyed by FieldName) → clears draft selection
+    if (setDraftFilters) {
+      setDraftFilters((prev) => {
+        const copy = { ...prev };
+        delete copy[fieldName];
+        delete copy[`${fieldName}_min`];
+        delete copy[`${fieldName}_max`];
+        return copy;
+      });
+    }
+
+    // 4️⃣ remove from filteredValue directly (covers external / server-side filters)
+    if (setFilteredValue) {
+      setFilteredValue((prev) =>
+        Array.isArray(prev) ? prev.filter((f) => f.name !== headerName) : []
+      );
+    }
+  };
+
   const containerRef = useRef(null);
   const [showScroll, setShowScroll] = useState(false);
   useEffect(() => {
@@ -358,7 +415,6 @@ const SummaryEndFilteredValue = ({
                     <Card
                       elevation={0}
                       sx={{
-
                         display: "flex", flexDirection: "column", justifyContent: "space-between",
                         width: "100%", height: "100%", padding: "6px 12px", borderRadius: "8px",
                         backgroundColor: "aliceblue", border: "1px solid #E5E7EB",
@@ -385,8 +441,23 @@ const SummaryEndFilteredValue = ({
                           filteredValueState.map((data, i) => (
                             <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 0.75, borderRadius: "999px" }}>
                               <Typography variant="caption" className="fontFamily"
-                                sx={{ fontWeight: 500, color: "#71717A", fontSize: "13px", letterSpacing: "-0.01em" }}>
-                                - {data.name}
+                                sx={{ fontWeight: 500, color: "#71717A", fontSize: "13px", letterSpacing: "-0.01em", display:'flex', gap: '5px', alignItems: 'center' }}>
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  className="removebtn"
+                                  title="Remove filter"
+                                  onClick={() => handleRemoveFilter(data)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      handleRemoveFilter(data);
+                                    }
+                                  }}
+                                >
+                                  <X size={11} />
+                                </span>
+                                {data.name}
                               </Typography>
                               <Box sx={{ width: "3px", height: "3px", borderRadius: "50%", bgcolor: "#D4D4D8" }} />
                               <Typography variant="caption" className="fontFamily"
@@ -443,7 +514,22 @@ const SummaryEndFilteredValue = ({
                 <Box sx={{ flexShrink: 0, display: "flex", alignItems: "center", gap: '10px' }}>
                   <Tooltip title="Refresh" disablePortal PopperProps={{ container: gridContainerRef.current }}>
                     <IconButton
-                      onClick={() => { refreshFunction(); setFilteredValue(); }}
+                      onClick={() => {
+                        setRotationDeg((prev) => prev - 360);
+                        refreshFunction();
+                        setFilteredValue();
+                      }}
+                      // sx={{
+                      //   background: "#ffffff", color: "#09090b", height: "38px", width: "38px",
+                      //   borderRadius: 3, transition: "all .2s ease",
+                      //   "&:hover": { backgroundColor: "#cdd5ff" },
+                      //   fontWeight: "600",
+                      //   boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",
+                      //   "& svg": {
+                      //     transform: `rotate(${rotationDeg}deg)`,
+                      //     transition: "transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
+                      //   },
+                      // }}
                       sx={{
                         background: "#cdd5ff", color: "#6f53ff", height: "38px", width: "38px",
                         borderRadius: 3, transition: "all .2s ease",
@@ -470,21 +556,63 @@ const SummaryEndFilteredValue = ({
                   )}
 
                   {masterKeyData?.OptigoChatBotAi == "True" &&
-                    <Button
-                      variant="contained"
-                      onClick={handleAskOptigoAi}
-                      className={`AibuttonClassname ${openAskOptigoAi ? "no-anim" : ""}`}
-                    >
-                      <Box component="img" src="./icons/ai-icon.svg" alt="Optigo AI"
-                        sx={{ width: 18, height: 18, borderRadius: "50%", mr: 0.8 }} />
-                      Ask OptigoAi
-                    </Button>
+                    (openAskOptigoAi ? (
+                      // Panel open: collapse to a circular avatar only.
+                      <IconButton
+                        onClick={handleAskOptigoAi}
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          p: 0,
+                          borderRadius: "50%",
+                          "@keyframes popIn": {
+                            "0%": { transform: "scale(0.6)", opacity: 0 },
+                            "60%": { transform: "scale(1.08)" },
+                            "100%": { transform: "scale(1)", opacity: 1 },
+                          },
+                          "@keyframes softGlow": {
+                            "0%, 100%": { boxShadow: "0 0 0 0 rgba(100,0,184,0.25)" },
+                            "50%": { boxShadow: "0 0 0 6px rgba(100,0,184,0)" },
+                          },
+                          animation: "popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both, softGlow 2.4s ease-in-out infinite",
+                          "&:hover": { transform: "scale(1.05)" },
+                          transition: "transform 0.15s ease",
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src="./icons/ai-icon.svg"
+                          alt="Optigo AI"
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: "50%",
+                            display: "block",
+                          }}
+                        />
+                      </IconButton>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        onClick={handleAskOptigoAi}
+                        className={`AibuttonClassname ${openAskOptigoAi ? "no-anim" : ""}`}
+                      >
+                        <Box component="img" src="./icons/ai-icon.svg" alt="Optigo AI"
+                          sx={{ width: 18, height: 18, borderRadius: "50%", mr: 0.8 }} />
+                        Ask OptigoAI
+                      </Button>
+                    ))
                   }
                 </Box>
             }
           </div>
           {masterKeyData?.OptigoChatBotAi == "True" &&
-            <AskOptigoAiDrawer open={openAskOptigoAi} onClose={handleCloseAskOptigoAi} />
+            <OptigoBotDrawer
+              open={openAskOptigoAi}
+              onClose={handleCloseAskOptigoAi}
+              width={optigoPanelWidth}
+              onWidthCommit={onOptigoPanelWidthChange}
+            />
           }
         </div>
       }

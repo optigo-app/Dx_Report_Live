@@ -3,7 +3,7 @@
   width: 61.083vw !important;
   box-sizing: border-box;
   padding: 10px;
-  margin: 150px 1rem 100px 1rem;
+  margin: 200px 1rem 100px 1rem;
   letter-spacing: 0.2px;
   flex-wrap: wrap;
   gap: 10px 15px;
@@ -162,7 +162,7 @@
 
 @media print {
   @page {
-    size: A4;                  /* ← portrait, as you want */
+    size: A4;
     margin: 5mm;
   }
 
@@ -181,13 +181,13 @@
     display: none !important;
   }
 
-  /* Main container */
+  /* Main container — flex row with stretch so all cards in a row match height */
   .container {
     width: 100% !important;
     max-width: 100% !important;
     display: flex !important;
     flex-wrap: wrap !important;
-    align-items: stretch !important;      /* ← KEY: all cards in a row = same height */
+    align-items: stretch !important;      /* ← KEY: all cards in a row stretch to tallest */
     justify-content: flex-start !important;
     padding: 0 !important;
     margin: 0 !important;
@@ -196,32 +196,32 @@
     overflow: visible !important;
   }
 
-  /* Card column */
+  /* Card column — NO fixed height, grows with content, stretches to row height */
   .col1 {
     flex: 0 0 19.5% !important;
     max-width: 19.5% !important;
     width: 19.5% !important;
     box-sizing: border-box !important;
-    display: flex !important;             /* ← needed for stretch to work on child */
-    flex-direction: column !important;
-  }
-
-  /* Card inner box */
-  .brbxAll {
-    flex: 1 !important;                   /* ← stretches to fill col1 height */
     display: flex !important;
     flex-direction: column !important;
-    overflow: hidden !important;          /* ← clips overflow, no layout expansion */
+    height: auto !important;              /* ← no fixed height */
+  }
+
+  /* Card inner box — fills full col1 height so border stretches too */
+  .brbxAll {
+    flex: 1 !important;                   /* ← fills the col1 height */
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;         /* ← NO clipping */
     box-sizing: border-box !important;
     width: 100% !important;
+    height: 100% !important;
   }
 
   /* Prevent card splitting across pages */
   .pagBrkIns {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-    display: block !important;
-    width: 100% !important;
   }
 
   /* Image box */
@@ -234,7 +234,7 @@
     justify-content: center !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
-    flex-shrink: 0 !important;            /* ← image area never shrinks */
+    flex-shrink: 0 !important;
   }
 
   .imgwdtheit img {
@@ -283,117 +283,3 @@
     height: 14px !important;
   }
 }
-
-/* @media print {
-  @page {
-    size: A4;
-    margin: 5px;
-    margin-top: 35px;
-  }
-
-  html,
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-  }
-
-  .pagBrkIns {
-    break-after: auto;
-    break-inside: avoid !important;
-    -webkit-column-break-inside: avoid !important;
-    display: inline-block !important;
-    vertical-align: top;
-    width: 100%; 
-  }
-
-  @media print {
-    .col1 {
-      display: block !important;
-      flex: 0 0 18.5% !important;
-      max-width: 18.5% !important;
-    }
-  }
-
-  .printLabelData {
-    font-size: 8px !important;
-  }
-
-  .container {
-    width: 100% !important;
-    max-width: 100% !important;
-    display: flex !important;
-    flex-wrap: wrap !important;
-    justify-content: center;
-    padding: 0 !important;
-    margin: 0 auto !important;
-    box-sizing: border-box;
-    gap: 10px 10px;
-    height: auto !important;
-    min-height: auto !important;
-    overflow: visible !important;
-  }
-
-  .col1 {
-    flex: 0 0 18.5%;
-    max-width: 18.5%;
-    box-sizing: border-box;
-  }
-  .fil_sec {
-    display: none;
-  }
-
-  .imgwdtheit {
-    width: 115px !important;
-    height: 115px !important;
-    padding: 5px 10px;
-  }
-
-  .imgwdtheit img {
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  .spaclftTpm {
-    padding-left: 2px;
-    padding-top: 2px;
-  }
-
-  .spacrighTpm {
-    padding-right: 2px;
-  }
-
-  .spacBtom {
-    padding-bottom: 2px;
-  }
-
-  .prnt_btn {
-    display: none;
-  }
-
-  .spfntbH {
-    font-size: 9px;
-    line-height: 10px;
-  }
-
-  .spfntHead {
-    font-size: 10px;
-    line-height: 11px;
-  }
-
-  .minheit {
-    height: 16.2px;
-  }
-
-  .pagination {
-    display: none !important;
-  }
-
-  .printHide {
-    display: none !important;
-  }
-
-  .hideData {
-    display: none !important;
-  }
-} */

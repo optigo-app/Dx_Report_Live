@@ -160,15 +160,16 @@ const CustomDualDatePicker = ({
     selectedDateColumn,
     showReportMaster,
     ShowAllbtn,
-    handleAllDataShow
+    handleAllDataShow,
+    datefilterServerSide
 }) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const [anchorElStatus, setAnchorElStatus] = useState(null);
     const open = Boolean(anchorEl);
     const [error, setError] = useState("");
     const [tempRange, setTempRange] = useState({
-        startDate: showReportMaster ? "" : (value.startDate || ""),
-        endDate: showReportMaster ? "" : (value.endDate || ""),
+        startDate: (showReportMaster && !datefilterServerSide) ? "" : (filterState?.dateRange?.startDate || value.startDate || ""),
+        endDate: (showReportMaster && !datefilterServerSide) ? "" : (filterState?.dateRange?.endDate || value.endDate || ""),
         status: ""
     });
 
@@ -204,15 +205,17 @@ const CustomDualDatePicker = ({
         }
     }, [dateColumnOptions]);
 
-    // Modified: Only update from filterState if showReportMaster is false
+    // Modified: Update from filterState when not a blank master report,
+    // or always when datefilterServerSide so the applied range stays visible.
     useEffect(() => {
-        if (!showReportMaster) {
-            setTempRange({
+        if (!showReportMaster || datefilterServerSide) {
+            setTempRange((prev) => ({
+                ...prev,
                 startDate: filterState?.dateRange.startDate || "",
                 endDate: filterState?.dateRange.endDate || "",
-            });
+            }));
         }
-    }, [value, showReportMaster, filterState]);
+    }, [value, showReportMaster, filterState, datefilterServerSide]);
 
     const handleOpen = (event) => setAnchorEl(event.currentTarget);
     const handleClose = () => setAnchorEl(null);
@@ -265,20 +268,40 @@ const CustomDualDatePicker = ({
         handleClose();
     };
 
+    // Clear icon: also clear the applied filterState so the box empties,
+    // since the closed display reads from filterState.dateRange.
+    const handleClearFilter = (e) => {
+        e?.stopPropagation();
+        setTempRange({ startDate: "", endDate: "", status: "" });
+        setFilterState((prev) => ({
+            ...prev,
+            dateRange: { startDate: "", endDate: "" },
+        }));
+        handleClose();
+    };
+
     const handleStatusSelect = (selectedStatus) => {
         setTempRange((prev) => ({ ...prev, status: selectedStatus }));
         setSelectedDateColumn(selectedStatus);
         setAnchorElStatus(null);
     };
 
-    // Modified: Show blank if showReportMaster is true and no dates selected yet
-    const displayValue =
-        showReportMaster && !tempRange?.startDate && !tempRange?.endDate
-            ? ""
-            : tempRange?.startDate && tempRange?.endDate
-                ? `${formatDate(tempRange.startDate)} - ${formatDate(tempRange.endDate)}`
-                : "";
+    // Format a {startDate, endDate} range into the display string.
+    const formatRange = (r) =>
+        r?.startDate && r?.endDate
+            ? `${formatDate(r.startDate)} - ${formatDate(r.endDate)}`
+            : "";
 
+    // Master reports (without server-side date filter) stay blank until the user
+    // selects a range. For all other reports the APPLIED filterState.dateRange is
+    // the source of truth so the value stays visible after clicking Apply; while the
+    // picker is open we show the live tempRange selection.
+    const displayValue =
+        showReportMaster && !datefilterServerSide
+            ? formatRange(tempRange)
+            : open
+                ? formatRange(tempRange)
+                : formatRange(filterState?.dateRange);
 
     return (
         <ThemeProvider theme={Datetheme} className="DatePickerView">
@@ -314,7 +337,7 @@ const CustomDualDatePicker = ({
                         endAdornment: (
                             <InputAdornment position="end">
                                 {displayValue && (
-                                    <IconButton size="small" onClick={handleClear}>
+                                    <IconButton size="small" onClick={handleClearFilter}>
                                         <ClearIcon fontSize="small" />
                                     </IconButton>
                                 )}

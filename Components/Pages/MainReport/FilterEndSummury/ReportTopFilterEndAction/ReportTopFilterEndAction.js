@@ -6,6 +6,7 @@ import {
   alpha,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,7 +25,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MdExpandMore, MdOutlineFilterAlt } from "react-icons/md";
 import { ArrowRight, ChartNoAxesCombined, FileSpreadsheet, Image, LayoutGrid, Pencil, PrinterCheck, Search, ShieldAlert, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -43,7 +44,7 @@ import { MdDoNotDisturb } from "react-icons/md";
 import { IoMdAddCircleOutline } from "react-icons/io";
 import { GiReturnArrow } from "react-icons/gi";
 import { evaluateRightBaseFormula } from "@/Utils/globalFunc";
-
+import TagPrint from "./TagPrint/TagPrint";
 
 const EXCEL_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8";
@@ -70,6 +71,27 @@ const ICON_LIST = [
     icon: GiReturnArrow,
   },
 ];
+
+
+const reportBtnStyle = (active) => ({
+  whiteSpace: "nowrap",
+  border: 'none',
+  borderRadius: "8px",
+  height: "36px",
+  px: 1.5,
+  fontSize: "0.78rem",
+  fontWeight: 600,
+  minWidth: "fit-content",
+  backgroundColor: active ? "#7c6cf0" : "#ffffff",
+  color: active ? "#ffffff" : "#3f3f46",
+  boxShadow: active ? "0 2px 6px rgba(124, 108, 240, 0.25)" : "none",
+  textTransform: "none",
+  transition: "all 0.18s ease",
+  "&:hover": {
+    backgroundColor: active ? "#6a5ae0" : "#f4f4f5",
+    borderColor: active ? "#6a5ae0" : "#cbd5e1",
+  },
+});
 
 const ReportTopFilterEndAction = ({
   isLoading,
@@ -126,6 +148,7 @@ const ReportTopFilterEndAction = ({
   highlightedIndex,
   setHighlightedIndex,
   filtersShowDraf,
+  filtersShow,
   setOtherReprot,
   otherReport,
   setAllColumData,
@@ -146,7 +169,15 @@ const ReportTopFilterEndAction = ({
   setSvgFilter,
   otherPrintOptionShow,
   otherPrintOptionShowData,
-  isRightBaseColumMaster
+  isRightBaseColumMaster,
+  reportsExcelRights,
+  datefilterServerSide,
+  spNumber,
+  onShowMoreData,
+  hasMoreData,
+  loadingMore,
+  clearAllDataSignal,
+  sortedRowsForViews
 }) => {
   const searchParams = useSearchParams();
   const pid = searchParams.get("pid");
@@ -164,6 +195,7 @@ const ReportTopFilterEndAction = ({
   const [openSnackbarMsg, setOpenSnackbarMsg] = useState(false);
   const [errorMessageColor, setErrorMessageColor] = useState("error");
   const [iframeWidth, setIframeWidth] = useState("600px")
+  const [iframeHeight, setIframeHeight] = useState("500px")
   const [selectedSvgId, setSelectedSvgId] = useState(null);
 
   useEffect(() => {
@@ -171,6 +203,8 @@ const ReportTopFilterEndAction = ({
       console.warn("Page is embedded in iframe - fullscreen may be restricted");
     }
   }, []);
+
+
 
   const handleAllDataShow = () => {
     setIsPageChanging(true);
@@ -210,6 +244,30 @@ const ReportTopFilterEndAction = ({
       });
     }
   };
+
+  // ── Clear all on-screen + sidebar filters WITHOUT touching the date range ──
+  // Triggered by SpliterReport's "All" button via clearAllDataSignal prop.
+  const clearAllFiltersOnly = () => {
+    setIsPageChanging(true);
+    setTimeout(() => setIsPageChanging(false), 400);
+
+    // ✅ Clear everything except date range (SpliterReport handles its own dates)
+    serverFiltersRef.current = {};   // clear server-side filter ref first
+    setTempInput({});                // clear server-side input text
+    setFiltersShowDraf({});
+    setFiltersShow({});              // this triggers the useEffect → merged becomes []
+    setFilters({});
+    setDraftFilters({});
+    setFilteredValue([]);            // explicitly empty after filtersShow is cleared
+    setCommonSearch("");
+    if (masterKeyData?.MultiDateFilter == "True") setSelectedDateColumn();
+  };
+
+  useEffect(() => {
+    if (clearAllDataSignal > 0) {
+      clearAllFiltersOnly();
+    }
+  }, [clearAllDataSignal]);
 
   const handleColorClick = (id) => {
     setSelectedColors((prev) => {
@@ -255,11 +313,15 @@ const ReportTopFilterEndAction = ({
   };
 
   const handleOpenPrintPreview = async () => {
-    const sorted = getSortedRows();
+    const sourceRows =
+      Array.isArray(sortedRowsForViews) && sortedRowsForViews.length > 0
+        ? sortedRowsForViews
+        : filteredRows;
+
     const filteredData =
       selectionModel?.length > 0
-        ? sorted.filter((row) => selectionModel.includes(row.id))
-        : sorted;
+        ? sourceRows.filter((row) => selectionModel.includes(row.id))
+        : sourceRows;
 
     setShowPrintView(true);
     setPrintData(filteredData);
@@ -563,6 +625,10 @@ const ReportTopFilterEndAction = ({
 
   const showonModelColum = [
     ...(allColumData?.filter(col => {
+      // exclude pure-action delete columns only; input/checkbox/toggle auth
+      // columns hold row data and must be exported
+      if (col?.IsAuthAction && Number(col?.IsAuthActionIcon) == 5) return false;
+      if (col?.IconName) return false;
       if (col.IsRightBase && col.IsRightBase !== "0") {
         return evaluateRightBaseFormula(
           col.IsRightBase,
@@ -572,8 +638,6 @@ const ReportTopFilterEndAction = ({
       return true;
     }) || [])
   ];
-
-
 
   const converted = mapRowsToHeaders(showonModelColum, sortedRowsForExport);
   const exportToExcel = () => {
@@ -642,6 +706,34 @@ const ReportTopFilterEndAction = ({
   };
 
   const [tempInput, setTempInput] = useState({});
+
+  const RENDERED_FILTER_TYPES = [
+    "ServerSideFilter",
+    "MultiSelection",
+    "RangeFilter",
+    "selectDropdownFilter",
+    "NormalFilter",
+    "suggestionFilter",
+  ];
+  const onScreenFilterCount = useMemo(
+    () =>
+      (columnsHide || [])
+        .filter((col) => col?.filterable && col?.IsOnScreenFilter === "True")
+        .reduce(
+          (sum, col) =>
+            sum +
+            (Array.isArray(col.filterTypes)
+              ? col.filterTypes.filter((ft) =>
+                RENDERED_FILTER_TYPES.includes(ft)
+              ).length
+              : 0),
+          0
+        ),
+    [columnsHide]
+  );
+
+  const onScreenFilterWidth = onScreenFilterCount > 5 ? 150 : 200;
+
   const renderServerSideFilter = (col) => {
     if (!col.filterTypes || col.filterTypes.length === 0) return null;
 
@@ -790,6 +882,15 @@ const ReportTopFilterEndAction = ({
           const uniqueValues = [
             ...new Set(originalRows?.map((row) => row[col.field])),
           ];
+          // ✅ count of applied (searched) selections for this column
+          const appliedMultiCount = Array.isArray(filtersShow?.[col.headerNamesingle])
+            ? filtersShow[col.headerNamesingle].length
+            : 0;
+          // ✅ count of draft (selected but not yet searched) selections
+          const draftMultiCount = Array.isArray(filtersShowDraf?.[col.headerNamesingle])
+            ? filtersShowDraf[col.headerNamesingle].length
+            : 0;
+          const multiCount = appliedMultiCount || draftMultiCount;
           return (
             <div
               key={col.field}
@@ -802,8 +903,10 @@ const ReportTopFilterEndAction = ({
                 disableGutters
                 expanded={openFilter === col.field}
                 sx={{
-                  width: 200,
-                  border: "1px solid #d5d5d573",
+                  width: onScreenFilterWidth,
+                  border: multiCount > 0
+                    ? "1px solid rgb(115, 103, 240)"
+                    : "1px solid #d5d5d573",
                   borderRadius: "8px",
                   position: "relative",
                   "&::before": { display: "none" },
@@ -832,9 +935,41 @@ const ReportTopFilterEndAction = ({
                     },
                   }}
                 >
-                  <p style={{ margin: 0, fontSize: 14 }}>
-                    {col.headerNameSub}
-                  </p>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      width: "100%",
+                      gap: 1,
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: 14 }}>
+                      {col.headerNameSub}
+                    </p>
+                    {multiCount > 0 && (
+                      <Box
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minWidth: 20,
+                          height: 20,
+                          px: 0.5,
+                          borderRadius: "10px",
+                          backgroundColor: "rgb(115, 103, 240)",
+                          color: "#fff",
+                          fontSize: "0.7rem",
+                          fontWeight: 600,
+                          lineHeight: 1,
+                          flexShrink: 0,
+                          marginRight: 1
+                        }}
+                      >
+                        {multiCount}
+                      </Box>
+                    )}
+                  </Box>
                 </AccordionSummary>
 
                 <AccordionDetails
@@ -861,69 +996,82 @@ const ReportTopFilterEndAction = ({
                       zIndex: 2,
                       background: "#fff",
                       display: "flex",
-                      justifyContent: "flex-end",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                       padding: "6px 8px",
                       borderBottom: "1px solid #eee",
-                      flexDirection: 'column'
+                      gap: 8,
                     }}
                   >
-                    <Button size="small" variant="outlined" onClick={handleApplyFilter}
-                      style={{
-                        borderColor: 'rgb(115, 103, 240)',
-                        color: 'rgb(115, 103, 240)'
-                      }}>
-                      Search
-                    </Button>
-                    <div
-                      style={{
-                        maxHeight: 220,
-                        overflowY: "auto",
-                        padding: "6px 10px",
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
                       }}
                     >
-                      {uniqueValues.map((value) => (
-                        <label
-                          key={value}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            padding: "4px 0",
-                            fontSize: "13px"
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={handleApplyFilter}
+                        style={{
+                          borderColor: "rgb(115, 103, 240)",
+                          color: "rgb(115, 103, 240)",
+                        }}
+                      >
+                        Search
+                      </Button>
+                    </Box>
+                  </div>
+                  <div
+                    style={{
+                      maxHeight: 220,
+                      overflowY: "auto",
+                      padding: "6px 10px",
+                    }}
+                  >
+                    {uniqueValues.map((value) => (
+                      <label
+                        key={value}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "4px 0",
+                          fontSize: "13px"
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={(draftFilters[col.field] || []).includes(value)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+
+                            setDraftFilters((prev) => {
+                              const existing = prev[col.field] || [];
+                              return {
+                                ...prev,
+                                [col.field]: checked
+                                  ? [...existing, value]
+                                  : existing.filter((v) => v !== value),
+                              };
+                            });
+
+                            setFiltersShowDraf((prev) => {
+                              const key = col.headerNamesingle;
+                              const existing = prev[key] || [];
+                              return {
+                                ...prev,
+                                [key]: checked
+                                  ? [...new Set([...existing, value])]
+                                  : existing.filter((v) => v !== value),
+                              };
+                            });
                           }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(draftFilters[col.field] || []).includes(value)}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-
-                              setDraftFilters((prev) => {
-                                const existing = prev[col.field] || [];
-                                return {
-                                  ...prev,
-                                  [col.field]: checked
-                                    ? [...existing, value]
-                                    : existing.filter((v) => v !== value),
-                                };
-                              });
-
-                              setFiltersShowDraf((prev) => {
-                                const key = col.headerNamesingle;
-                                const existing = prev[key] || [];
-                                return {
-                                  ...prev,
-                                  [key]: checked
-                                    ? [...new Set([...existing, value])]
-                                    : existing.filter((v) => v !== value),
-                                };
-                              });
-                            }}
-                          />
-                          {value}
-                        </label>
-                      ))}
-                    </div>
+                        />
+                        {value}
+                      </label>
+                    ))}
                   </div>
                 </AccordionDetails>
               </Accordion>
@@ -1106,9 +1254,9 @@ const ReportTopFilterEndAction = ({
               key={`filter-${col.field}-selectDropdownFilter`}
               style={{ width: "100%", margin: "0px" }}
             >
-              <FormControl fullWidth size="small" style={{ width: '200px' }}
+              <FormControl fullWidth size="small" style={{ width: `${onScreenFilterWidth}px` }}
                 sx={{
-                  width: 200,
+                  width: onScreenFilterWidth,
 
                   "& .MuiOutlinedInput-root": {
                     borderRadius: "6px",
@@ -1603,9 +1751,9 @@ const ReportTopFilterEndAction = ({
     return filteredRows.find((r) => r.id === selectionModel[0]);
   };
 
-  const buildIframeUrl = (iframeTypeId) => {
+  const buildIframeUrl = (iframeTypeId, allowNoSelection = false) => {
     const row = getSelectedRow();
-    if (!row) return "";
+    if (!row && !allowNoSelection) return "";
 
     const rd2Params = iframeModelData?.rd2?.filter(
       (x) => x.IframeTypeId == iframeTypeId
@@ -1618,6 +1766,7 @@ const ReportTopFilterEndAction = ({
     if (!rd3Item || !rd2Params) return "";
 
     const getRowValue = (paramName) => {
+      if (!row) return "";
       const key = Object.keys(row).find(
         (k) => k.toLowerCase() === paramName.toLowerCase()
       );
@@ -1639,16 +1788,33 @@ const ReportTopFilterEndAction = ({
     return `${rd3Item.BaseUrl}${rd3Item.ReportRedirectUrl}&${queryString}`;
   };
 
-  const openIframe = async (iframeTypeId, popupTitle, baseUrl) => {
-    if (!selectionModel.length) {
+  const openIframe = async (data) => {
+    const {
+      IframeTypeId: iframeTypeId,
+      PopupTitle: popupTitle,
+      BaseUrl: baseUrl,
+      IframeWidth,
+      IframeHeight,
+      IsRedirectButton,
+      DisableCheckboxSelection,
+    } = data;
+
+    const isCheckboxDisabled =
+      DisableCheckboxSelection === true || DisableCheckboxSelection === "true";
+    const isRedirect =
+      IsRedirectButton === true || IsRedirectButton === "true";
+
+    // Only enforce "select a row" when checkbox selection isn't disabled
+    if (!isCheckboxDisabled && !selectionModel.length) {
       alert("Please select a row first");
       return;
     }
 
+    const width = IframeWidth ? `${IframeWidth}px` : "600px";
+    const height = IframeHeight ? `${IframeHeight}px` : "500px";
+
     let AllData = JSON.parse(sessionStorage.getItem("reportVarible"));
-    const selectedRows = selectionModel?.map((id) =>
-      apiRef.current.getRow(id)
-    );
+    const selectedRows = selectionModel?.map((id) => apiRef.current.getRow(id));
 
     const actionIds = selectedRows
       .map((row) => row.forencodeDesignsIds)
@@ -1659,7 +1825,7 @@ const ReportTopFilterEndAction = ({
       Yearcode: `${AllData?.YearCode}`,
       version: `${atob(AllData?.dxver)}`,
       sv: `${atob(AllData?.SV)}`,
-      sp: 55,
+      sp: spNumber,
     };
 
     const body = {
@@ -1669,26 +1835,51 @@ const ReportTopFilterEndAction = ({
         appuserid: AllData?.LUId,
         IPAddress: clientIpAddress,
       }),
-      p: JSON.stringify({
-        ActionIds: actionIds
-      }),
+      p: JSON.stringify({ ActionIds: actionIds }),
       f: "DynamicReport (get column data)",
     };
-    const APIURL = atob(AllData?.rptapiurl)
+    const APIURL = atob(AllData?.rptapiurl);
+
     if (iframeTypeId == 6) {
-      setIframeTitle(popupTitle);
-      setIframeWidth("1200px")
       try {
         const response = await axios.post(APIURL, body, { headers: header });
         const finalURL = baseUrl + response?.data?.Data?.rd[0]?.Full_url;
+
+        if (isRedirect) {
+          window.open(finalURL, "_blank", "noopener,noreferrer");
+          return;
+        }
+
+        setIframeWidth(width);
+        setIframeHeight(height);
+        setIframeTitle(popupTitle);
         setIframeUrl(finalURL);
         setOpenIframeModal(true);
       } catch (error) {
         console.error("error is..", error);
       }
     } else {
-      setIframeWidth("600px")
-      const url = buildIframeUrl(iframeTypeId);
+      const url = buildIframeUrl(iframeTypeId, isCheckboxDisabled);
+
+      if (isRedirect) {
+        if (window?.parent?.postMessage) {
+          window.parent.postMessage(
+            {
+              type: "ADD_TAB",
+              evt: "DynamicReport",
+              payload: {
+                TabName: data.PopupTitle,
+                TabUrl: url,
+              },
+            },
+            "*"
+          );
+        }
+        return;
+      }
+
+      setIframeWidth(width);
+      setIframeHeight(height);
       setIframeTitle(popupTitle);
       setIframeUrl(url);
       setOpenIframeModal(true);
@@ -1809,7 +2000,6 @@ const ReportTopFilterEndAction = ({
         onClose={() => setOpenIframeModal(false)}
         PaperProps={{
           sx: {
-            height: "40vh",
             borderRadius: 2,
             overflow: "hidden",
           },
@@ -1818,7 +2008,8 @@ const ReportTopFilterEndAction = ({
           '& .MuiPaper-root': {
             width: `${iframeWidth} !important`,
             maxWidth: `${iframeWidth} !important`,
-            minHeight: '500 !important'
+            height: `${iframeHeight} !important`,
+            maxHeight: `${iframeHeight} !important`,
           }
         }}
       >
@@ -1827,20 +2018,20 @@ const ReportTopFilterEndAction = ({
             display: "flex",
             justifyContent: "space-between",
             padding: "15px 15px 10px 15px",
-            backgroundColor: "#ebebeb",
+            backgroundColor: "#222",
           }}
         >
           <div>
-            <p style={{ margin: '0px', fontWeight: 600 }}>{iframeTitle}</p>
+            <p style={{ margin: '0px', fontWeight: 600, color: 'white' }}>{iframeTitle}</p>
           </div>
           <IconButton
             edge="end"
             size="small"
             onClick={() => setOpenIframeModal(false)}
             aria-label="clear"
-            style={{ border: "1px solid rgb(44 56 90)" }}
+            style={{ border: "1px solid white" }}
           >
-            <X size={18} color="black" />
+            <X size={18} color="white" />
           </IconButton>
         </div>
 
@@ -1848,7 +2039,7 @@ const ReportTopFilterEndAction = ({
           src={iframeUrl}
           style={{
             border: "none",
-            minHeight: "40vh",
+            height: "100%",
             width: "100%",
           }}
         />
@@ -1887,9 +2078,7 @@ const ReportTopFilterEndAction = ({
                 return (
                   <Button
                     key={index}
-                    onClick={() =>
-                      openIframe(data.IframeTypeId, data.PopupTitle, data?.BaseUrl)
-                    }
+                    onClick={() => openIframe(data)}
                     className="fontFamily"
                     style={{ backgroundColor: 'rgb(213 219 249)', color: '#5a43e6', borderRadius: '5px', fontSize: '11.5px', height: "40px" }}
                   >
@@ -1900,23 +2089,7 @@ const ReportTopFilterEndAction = ({
             </div>
           }
 
-          <div style={{ display: 'flex' }}>
-            {masterKeyData?.MakeNewReport == "True" &&
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <ActionButton onClick={() => setOpenSaveModal(true)}
-                  style={{
-                    width: '180px',
-                    border: '1px solid rgb(205 213 255)',
-                    color: '#7d66ff'
-                  }}
-                  className="fontFamily"
-                >
-                  <AddRoundedIcon />
-                  Make New report
-                </ActionButton>
-              </div>
-            }
-
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {masterKeyData?.MakeNewReport == "True" &&
               <MakeNewReport
                 setAllColumData={setAllColumData}
@@ -1937,6 +2110,27 @@ const ReportTopFilterEndAction = ({
                 filters={filters}
                 setFilters={setFilters}
               />
+            }
+
+            {masterKeyData?.MakeNewReport == "True" &&
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <ActionButton onClick={() => setOpenSaveModal(true)}
+                  style={{
+                    width: '160px',
+                    height: '36px',
+                    border: '1px solid #7c6cf0',
+                    color: '#7c6cf0',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '0.78rem',
+                    backgroundColor: 'rgba(124, 108, 240, 0.06)'
+                  }}
+                  className="fontFamily"
+                >
+                  <AddRoundedIcon style={{ fontSize: 18 }} />
+                  Make New report
+                </ActionButton>
+              </div>
             }
 
             {!isLoading &&
@@ -2042,12 +2236,22 @@ const ReportTopFilterEndAction = ({
                 {masterKeyData?.IsMainFilterButton == "True" && <IconButton
                   onClick={toggleDrawer(true)}
                   sx={{
-                    bgcolor: '#d5d5d573',
-                    borderRadius: 2
+                    bgcolor: '#f1f5f9',
+                    color: '#475569',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    width: '36px',
+                    height: '36px',
+                    transition: 'all 0.18s ease',
+                    '&:hover': {
+                      bgcolor: '#e2e8f0',
+                      color: '#0f172a',
+                      borderColor: '#cbd5e1',
+                    },
                   }}
                 >
                   <FilterIcons
-                    FontSize={25}
+                    FontSize={18}
                   />
                 </IconButton>
                 }
@@ -2076,6 +2280,7 @@ const ReportTopFilterEndAction = ({
                           showReportMaster={showReportMaster}
                           ShowAllbtn={masterKeyData?.AllDataButton == "True"}
                           handleAllDataShow={handleAllDataShow}
+                          datefilterServerSide={datefilterServerSide}
                         />
                         :
                         <Button
@@ -2116,42 +2321,60 @@ const ReportTopFilterEndAction = ({
                       }
                     ]);
                   }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search size={20} color="#888" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: commonSearch ? (
-                      <InputAdornment position="end">
-                        <IconButton
-                          edge="end"
-                          size="small"
-                          onClick={() => setCommonSearch("")}
-                          aria-label="clear"
-                        >
-                          <X size={18} color="#888" />
-                        </IconButton>
-                      </InputAdornment>
-                    ) : null,
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ color: "#71717a", mr: 0.5 }}>
+                          <Search size={16} color="#71717a" />
+                        </InputAdornment>
+                      ),
+                      endAdornment: commonSearch ? (
+                        <InputAdornment position="end">
+                          <IconButton
+                            edge="end"
+                            size="small"
+                            onClick={() => setCommonSearch("")}
+                            aria-label="clear"
+                          >
+                            <X size={15} color="#71717a" />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : null,
+                    },
                   }}
                   sx={{
                     width: "280px",
-                    // Remove MUI outline completely
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      border: "none",
-                    },
-
-                    "& .MuiInputBase-input": {
-                      padding: "6px !important",
-
-                    },
+                    backgroundColor: "#ffffff",
+                    borderRadius: "8px",
                     "& .MuiOutlinedInput-root": {
-                      height: "40px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      paddingLeft: "10px",
                       paddingRight: "8px",
-                      border: "1px solid #d5d5d573",
+                      fontSize: "0.78rem",
+                      fontWeight: 500,
+                      color: "#09090b",
+                      backgroundColor: "#ffffff",
+                      "& .MuiInputBase-input": {
+                        padding: "0px 4px !important",
+                        fontSize: "0.78rem",
+                        fontWeight: 500,
+                        color: "#09090b",
+                      },
                     },
-
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#e4e4e7",
+                      borderWidth: "1px",
+                      transition: "all 0.18s ease",
+                    },
+                    "&:hover .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#a1a1aa",
+                    },
+                    "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#18181b !important",
+                      borderWidth: "1px !important",
+                      boxShadow: "0 0 0 2px rgba(24, 24, 27, 0.08)",
+                    },
                   }}
                   className="txt_commonSearch"
                 />
@@ -2410,6 +2633,18 @@ const ReportTopFilterEndAction = ({
                 </FormControl>
               )}
 
+              {masterKeyData?.ShowMultiTableData == "True" && (
+                <Button
+                  variant="contained"
+                  onClick={onShowMoreData}
+                  disabled={!hasMoreData || loadingMore}
+                  startIcon={loadingMore ? <CircularProgress size={18} /> : null}
+                  sx={reportBtnStyle("mainreport" === "mainreport")}
+                >
+                  {loadingMore ? "Loading..." : "Show More Data"}
+                </Button>
+              )}
+
               {masterKeyData?.PrintButton == "True" && (
                 <Tooltip
                   title="Print"
@@ -2576,7 +2811,8 @@ const ReportTopFilterEndAction = ({
                   </div>
                 ))}
 
-              {masterKeyData?.ExcelExport == "True" && (
+              {/* {masterKeyData?.ExcelExport == "True" && ( */}
+              {(reportsExcelRights[0]?.IsExcelRight == 1 && reportsExcelRights[0]?.IsReportExcelRights == 1) &&
                 <Tooltip
                   title="Export to Excel"
                   disablePortal
@@ -2603,7 +2839,7 @@ const ReportTopFilterEndAction = ({
                     <FileSpreadsheet size={22} />
                   </IconButton>
                 </Tooltip>
-              )}
+              }
 
               {masterKeyData?.ChartView == "True" &&
                 <div
@@ -2767,6 +3003,13 @@ const ReportTopFilterEndAction = ({
                 </Tooltip>
               }
 
+              {pid == 18546 &&
+                <TagPrint
+                  selectionModel={selectionModel}
+                  filteredRows={filteredRows}
+                  gridContainerRef={gridContainerRef}
+                />
+              }
 
               {/* {masterKeyData?.FullScreenGridButton == "True" && (
                 <Tooltip
@@ -2816,7 +3059,6 @@ const ReportTopFilterEndAction = ({
 };
 
 export default ReportTopFilterEndAction;
-
 
 const FilterIcons = ({ FontSize = 35 }) => {
   return <>
