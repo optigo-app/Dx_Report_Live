@@ -18,6 +18,7 @@ import { ArrowRight } from "lucide-react";
 import MainReport from "@/Components/Pages/MainReport/MainReport";
 import { ReportCallApi } from "@/API/ReportCommonAPI/ReportCallApi";
 import SpliterReport from "@/Components/Pages/SpliterReport/SpliterReport";
+import SummaryCards from "@/Components/Pages/Report/SummaryCards/SummaryCards"
 import sampleData from './SampleDataAPI.json';
 
 const SelectionBox = ({
@@ -206,6 +207,9 @@ export default function ReportHome({
   reportsExcelRights,
   datefilterServerSide,
   popupParamiter,
+  reportAlertData,
+  isShowPreFilterModal,
+  CustomizeUserFirstPanelData
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [spData, setSpData] = useState(null);
@@ -231,6 +235,10 @@ export default function ReportHome({
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
   const lastFiltersRef = useRef({ filters: {}, Master: "0" });
+  const preFilterValueRef = useRef("");          // clicked card value ("" = first call)
+  const preFilterRef = useRef(null);
+  const [preFilterData, setPreFilterData] = useState(null); // cards data (first call ka response)
+  const [showPreFilterPanel, setShowPreFilterPanel] = useState(!!isShowPreFilterModal);
   const formatDate = (d) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
       d.getDate()
@@ -277,7 +285,10 @@ export default function ReportHome({
               appuserid: AllData?.LUId,
               IPAddress: clientIpAddress,
             }),
-            p: JSON.stringify({ ReportId: reportId, IsMaster: "1" }),
+            p: JSON.stringify({
+              ReportId: reportId,
+              IsMaster: "1",
+            }),
             f: "DynamicReport ( get master )",
           };
           const response = await ReportCallApi(body, spNumber);
@@ -331,6 +342,7 @@ export default function ReportHome({
         setHasMoreData(true);
       }
       lastFiltersRef.current = { filters, Master };
+      const preFilterValue = preFilterValueRef.current;
       let AllData = JSON.parse(sessionStorage.getItem("reportVarible"));
       const masterDataBody = {
         con: JSON.stringify({
@@ -339,7 +351,9 @@ export default function ReportHome({
           appuserid: AllData?.LUId,
           IPAddress: clientIpAddress,
         }),
-        p: JSON.stringify({ ReportId: reportId }),
+        p: JSON.stringify({
+          ReportId: reportId,
+        }),
         f: "DynamicReport ( get sp list )",
       };
 
@@ -385,6 +399,8 @@ export default function ReportHome({
           ReportId: reportId,
           IsMaster: Master,
           TableNumber: tableNum,
+          ...(isShowPreFilterModal && !preFilterValue && { isShowPreFilterModal: true }),
+          ...(isShowPreFilterModal && !!preFilterValue && { isShowPreFilterValue: preFilterValue }),
           ...(FilterHeader && { FilterHeader }),
           ...(FilterValue && { FilterValue }),
           ...(ServerFilterHeader && { ServerFilterHeader }),
@@ -404,7 +420,7 @@ export default function ReportHome({
 
       let response;
       // if (spNumber == 35) {
-        // response = sampleData;
+      // response = sampleData;
       // } else {
       response = await ReportCallApi(body, spNumber);
       // }
@@ -426,19 +442,19 @@ export default function ReportHome({
       }
 
       if (response?.rd[0]?.stat == 0) {
+        if (isShowPreFilterModal && showPreFilterPanel) preFilterValueRef.current = "";
         setErrorMessageColor("warning");
         setErrorMessage(
           `Found ${response?.rd[0]?.ActualCount} records, limit ${response?.rd[0]?.LargeDataCount}. Please narrow your filters.`
         );
         setOpenSnackbar(true);
       } else if (response?.rd[0]?.stat == 2) {
+        if (isShowPreFilterModal && showPreFilterPanel) preFilterValueRef.current = "";
         setErrorMessageColor("error");
         setErrorMessage("No Records Found");
         setOpenSnackbar(true);
       } else {
         if (isLoadMore) {
-          // Merge: keep rd, rd1, rd2 etc. from existing spData,
-          // only append new rd3 rows to existing rd3.
           const newRows = response?.rd3 || [];
           if (newRows.length === 0) {
             setHasMoreData(false);
@@ -447,12 +463,20 @@ export default function ReportHome({
               ...response,
               rd3: [...(prev?.rd3 || []), ...newRows],
             }));
-            // Disable after first successful "Show More Data" load
             setHasMoreData(false);
           }
         } else {
           setSpData(response);
           setShowReportMaster(false);
+
+          if (isShowPreFilterModal) {
+            if (preFilterValue) {
+              setShowPreFilterPanel(false);
+            } else {
+              setPreFilterData(response);
+              setShowPreFilterPanel(true);
+            }
+          }
         }
       }
 
@@ -466,6 +490,7 @@ export default function ReportHome({
       }
     } catch (error) {
       console.error("getReportData failed:", error);
+      if (isShowPreFilterModal && showPreFilterPanel) preFilterValueRef.current = "";
       setIsLoading(false);
       setLoadingMore(false);
       loadingMoreRef.current = false;
@@ -657,166 +682,208 @@ export default function ReportHome({
     );
   };
 
+  const handlePreFilterCardClick = (row) => {
+    if (isLoading) return;
+    preFilterValueRef.current = String(row?.SummaryFilterTitle ?? "");
+    const { filters } = lastFiltersRef.current;
+    fetchReportData(filters || {}, "0");
+  };
+
   const handleBack = () => {
+    if (isShowPreFilterModal) {
+      preFilterValueRef.current = "";          // Modal flag dobara jayega, Value nahi
+      setShowPreFilterPanel(true);
+      const { filters } = lastFiltersRef.current;
+      fetchReportData(filters || {}, "0");     // cards refresh
+      return;
+    }
     setShowReportMaster(true);
   };
+
+  const preFilterActive = isShowPreFilterModal && showPreFilterPanel;
+  const viewKey = preFilterActive ? "prefilter" : showReportMaster ? "master" : "report";
+  const viewRef = viewKey === "prefilter" ? preFilterRef : viewKey === "master" ? masterRef : reportRef;
+
   return (
     <DragDropContext onDragEnd={() => { }}>
       <SwitchTransition>
         <CSSTransition
-          key={showReportMaster ? "master" : "report"}
+          key={viewKey}
           timeout={600}
           classNames="fade-slide"
-          nodeRef={showReportMaster ? masterRef : reportRef}
-          style={{
-            overflow: "hidden",
-          }}
+          nodeRef={viewRef}
+          style={{ overflow: "hidden" }}
         >
-          {showReportMaster ? (
-            <div ref={masterRef} className="master-container">
+          {viewKey === "prefilter" ? (
+            <div ref={preFilterRef} className="master-container">
               <div className="report_master_header">
-                <p className="topHeader_title">Report Filter Panel</p>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginLeft: "20px",
-                  }}
-                >
-                  <Button
-                    className="Btn_Show_Report"
-                    disableElevation
-                    onClick={handleSave}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <p>Loading...</p>
-                        <CircularProgress size={16} sx={{ ml: 1, color: "inherit" }} />
-                      </>
-                    ) : (
-                      <>
-                        <p>Show Report</p>
-                        <ArrowRight />
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <p className="topHeader_title">{reportName}</p>
               </div>
-
-              <div className="reportOption_main">
-                {dateOptionsShow && (
-                  <Grid item>
-                    <div className="selection-box">
-                      <div
-                        className="selection-header"
-                        style={{
-                          minHeight: "50px",
-                          borderBottom: " 1px solid #ddd",
-                          padding: "6px 6px 10px 6px",
-                        }}
-                      >
-                        <p
-                          className="selection-title"
+              <div
+                style={{
+                  position: "relative",
+                  opacity: isLoading ? 0.5 : 1,
+                  pointerEvents: isLoading ? "none" : "auto",
+                  transition: "opacity 0.2s ease",
+                }}
+              >
+                <SummaryCards
+                  spData={preFilterData}
+                  hideEmpty
+                  onCardClick={handlePreFilterCardClick}
+                />
+              </div>
+              {isLoading && (
+                <CircularProgress size={28} sx={{ position: "fixed", top: "50%", left: "50%" }} />
+              )}
+            </div>
+          ) : viewKey === "master" ? (
+            <div ref={masterRef} className="master-container">
+              {!isShowPreFilterModal &&
+                <div className="report_master_header">
+                  <p className="topHeader_title">Report Filter Panel</p>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginLeft: "20px",
+                    }}
+                  >
+                    <Button
+                      className="Btn_Show_Report"
+                      disableElevation
+                      onClick={handleSave}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <p>Loading...</p>
+                          <CircularProgress size={16} sx={{ ml: 1, color: "inherit" }} />
+                        </>
+                      ) : (
+                        <>
+                          <p>Show Report</p>
+                          <ArrowRight />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              }
+              {!isShowPreFilterModal &&
+                <div className="reportOption_main">
+                  {dateOptionsShow && (
+                    <Grid item>
+                      <div className="selection-box">
+                        <div
+                          className="selection-header"
                           style={{
-                            width: "100%",
-                            maxWidth: "100%",
-                            textAlign: "center",
+                            minHeight: "50px",
+                            borderBottom: " 1px solid #ddd",
+                            padding: "6px 6px 10px 6px",
                           }}
                         >
-                          Date
-                        </p>
-                      </div>
-                      <div
-                        className="master-box"
-                        style={{ maxHeight: "310px" }}
-                      >
-                        {loadingMaster ? (
-                          Array.from(new Array(6)).map((_, idx) => (
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                marginBottom: 8,
-                              }}
-                            >
-                              <Skeleton
-                                variant="circular"
-                                width={24}
-                                height={24}
-                              />
-                              <Skeleton
-                                variant="text"
-                                width={120}
-                                height={24}
-                                style={{ marginLeft: 8 }}
-                              />
+                          <p
+                            className="selection-title"
+                            style={{
+                              width: "100%",
+                              maxWidth: "100%",
+                              textAlign: "center",
+                            }}
+                          >
+                            Date
+                          </p>
+                        </div>
+                        <div
+                          className="master-box"
+                          style={{ maxHeight: "310px" }}
+                        >
+                          {loadingMaster ? (
+                            Array.from(new Array(6)).map((_, idx) => (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  marginBottom: 8,
+                                }}
+                              >
+                                <Skeleton
+                                  variant="circular"
+                                  width={24}
+                                  height={24}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  width={120}
+                                  height={24}
+                                  style={{ marginLeft: 8 }}
+                                />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="dateOption">
+                              <div>
+                                {dateOptions.filter((option) => option.IsOn)
+                                  .length > 0 ? (
+                                  dateOptions
+                                    .filter((option) => option.IsOn)
+                                    .map((option) => (
+                                      <label
+                                        key={option.DateFrameId}
+                                        className="master-item"
+                                        style={{
+                                          cursor: "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                        }}
+                                      >
+                                        <Checkbox
+                                          sx={{ padding: "2px" }}
+                                          checked={
+                                            selectedDateOption ===
+                                            option.DateFrame
+                                          }
+                                          onChange={() =>
+                                            handleDateSelection(option.DateFrame)
+                                          }
+                                        />
+                                        <span>{option.DateFrame}</span>
+                                      </label>
+                                    ))
+                                ) : (
+                                  <p
+                                    style={{ textAlign: "center", color: "#888" }}
+                                  >
+                                    No date options available
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="dateOption">
-                            <div>
-                              {dateOptions.filter((option) => option.IsOn)
-                                .length > 0 ? (
-                                dateOptions
-                                  .filter((option) => option.IsOn)
-                                  .map((option) => (
-                                    <label
-                                      key={option.DateFrameId}
-                                      className="master-item"
-                                      style={{
-                                        cursor: "pointer",
-                                        display: "flex",
-                                        alignItems: "center",
-                                      }}
-                                    >
-                                      <Checkbox
-                                        sx={{ padding: "2px" }}
-                                        checked={
-                                          selectedDateOption ===
-                                          option.DateFrame
-                                        }
-                                        onChange={() =>
-                                          handleDateSelection(option.DateFrame)
-                                        }
-                                      />
-                                      <span>{option.DateFrame}</span>
-                                    </label>
-                                  ))
-                              ) : (
-                                <p
-                                  style={{ textAlign: "center", color: "#888" }}
-                                >
-                                  No date options available
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}{" "}
+                          )}{" "}
+                        </div>
                       </div>
-                    </div>
-                  </Grid>
-                )}
-                {parsedTitles?.map(({ field, title }, idx) => {
-                  const dataArray =
-                    Object.values(masterFields).find((arr) =>
-                      arr.some((item) => item.hasOwnProperty(field))
-                    ) || [];
-                  if (dataArray.length === 0) return null;
-                  return (
-                    <Grid item key={idx}>
-                      <SelectionBox
-                        title={title}
-                        data={dataArray}
-                        selected={selectedValues[field] || []}
-                        setSelected={(val) => handleSelection(field, val)}
-                        clearAll={() => clearFieldSelections(field)}
-                        loading={loadingMaster}
-                      />
                     </Grid>
-                  );
-                })}
-              </div>
+                  )}
+                  {parsedTitles?.map(({ field, title }, idx) => {
+                    const dataArray =
+                      Object.values(masterFields).find((arr) =>
+                        arr.some((item) => item.hasOwnProperty(field))
+                      ) || [];
+                    if (dataArray.length === 0) return null;
+                    return (
+                      <Grid item key={idx}>
+                        <SelectionBox
+                          title={title}
+                          data={dataArray}
+                          selected={selectedValues[field] || []}
+                          setSelected={(val) => handleSelection(field, val)}
+                          clearAll={() => clearFieldSelections(field)}
+                          loading={loadingMaster}
+                        />
+                      </Grid>
+                    );
+                  })}
+                </div>}
             </div>
           ) : (
             <div ref={reportRef} className="report-container">
@@ -868,13 +935,15 @@ export default function ReportHome({
                   isPrintColumnData={isPrintColumnData}
                   onSearchFilter={fetchReportData}
                   reportsExcelRights={reportsExcelRights}
+                  reportAlertData={reportAlertData}
+                  CustomizeUserFirstPanelData={CustomizeUserFirstPanelData}
                 />
                 :
                 <MainReport
                   OtherKeyData={spData}
                   masterData={masterData}
                   onBack={handleBack}
-                  showBackErrow={largeData}
+                  showBackErrow={largeData || isShowPreFilterModal}
                   filteredValue={filteredValue}
                   spNumber={spNumber}
                   onSearchFilter={fetchReportData}
@@ -910,6 +979,7 @@ export default function ReportHome({
                   onShowMoreData={handleShowMoreData}
                   hasMoreData={hasMoreData}
                   loadingMore={loadingMore}
+                  reportAlertData={reportAlertData}
                 />
               }
             </div>

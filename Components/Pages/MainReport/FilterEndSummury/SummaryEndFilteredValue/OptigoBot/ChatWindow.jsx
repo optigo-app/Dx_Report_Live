@@ -14,9 +14,18 @@ import {
   Square,
   ChevronDown,
   Plus,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import { useChatbot } from "./useChatbot";
+import {
+  isSoundEnabled,
+  setSoundEnabled,
+  playSend,
+  playReceive,
+  playError,
+} from "./sounds";
 import fetchSuggestedQuestions from "@/API/LLMApi/optigoSuggestedQuestions";
 
 const PREMADE_QUESTIONS_MASTER = [
@@ -86,7 +95,15 @@ export default function ChatWindow({ onClose }) {
       return "";
     }
   });
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
   const scrollRef = useRef(null);
+
+  const toggleSound = () => {
+    setSoundOn((prev) => {
+      setSoundEnabled(!prev);
+      return !prev;
+    });
+  };
 
   // Report-aware suggested questions from the API; URL-based list is the fallback.
   useEffect(() => {
@@ -110,6 +127,15 @@ export default function ChatWindow({ onClose }) {
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
       setShowScrollPill(false);
     }
+    // Chime when a fresh bot response lands; low blip when it's an error.
+    if (!isLoading && messages.length) {
+      const last = messages[messages.length - 1];
+      if (last.role === "assistant") {
+        const failed = last.blocks?.some((b) => b?.type === "error");
+        if (failed) playError();
+        else playReceive();
+      }
+    }
   }, [messages, isLoading]);
 
   // Show a "scroll to bottom" pill when the user has scrolled up.
@@ -132,11 +158,15 @@ export default function ChatWindow({ onClose }) {
     const next = (text ?? inputValue).trim();
     if (!next || isLoading) return;
     setInputValue("");
+    playSend();
     sendMessage(next);
   };
 
   const handleRegenerate = (question) => {
-    if (!isLoading) sendMessage(question, { regenerate: true });
+    if (!isLoading) {
+      playSend();
+      sendMessage(question, { regenerate: true });
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -218,6 +248,19 @@ export default function ChatWindow({ onClose }) {
           </Box>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+          <Tooltip title={soundOn ? "Mute sounds" : "Unmute sounds"}>
+            <IconButton
+              onClick={toggleSound}
+              size="small"
+              sx={{
+                color: soundOn ? "var(--primary-btncolor-start)" : "text.disabled",
+                transition: "all 0.2s ease",
+                "&:hover": { backgroundColor: "#f5f3ff" },
+              }}
+            >
+              {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            </IconButton>
+          </Tooltip>
           <Tooltip title="New chat">
             <IconButton
               onClick={handleNewChat}

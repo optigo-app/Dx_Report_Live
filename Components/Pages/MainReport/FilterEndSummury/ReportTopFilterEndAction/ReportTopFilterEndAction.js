@@ -128,6 +128,8 @@ const ReportTopFilterEndAction = ({
   columns = [],
   setShowPrintView,
   setPrintData,
+  setShowGridPrintView,
+  setGridPrintData,
   grupEnChekBoxImage,
   showImageView,
   setShowImageView,
@@ -196,6 +198,7 @@ const ReportTopFilterEndAction = ({
   const [errorMessageColor, setErrorMessageColor] = useState("error");
   const [iframeWidth, setIframeWidth] = useState("600px")
   const [iframeHeight, setIframeHeight] = useState("500px")
+  const [printMenuAnchor, setPrintMenuAnchor] = useState(null);
   const [selectedSvgId, setSelectedSvgId] = useState(null);
 
   useEffect(() => {
@@ -325,6 +328,34 @@ const ReportTopFilterEndAction = ({
 
     setShowPrintView(true);
     setPrintData(filteredData);
+  };
+
+  const handleOpenGridPrintView = () => {
+    const sourceRows =
+      Array.isArray(sortedRowsForViews) && sortedRowsForViews.length > 0
+        ? sortedRowsForViews
+        : filteredRows;
+
+    const gridData =
+      selectionModel?.length > 0
+        ? sourceRows.filter((row) => selectionModel.includes(row.id))
+        : sourceRows;
+
+    setGridPrintData(gridData);
+    setShowGridPrintView(true);
+  };
+
+  const handlePrintButtonClick = (e) => {
+    const hasImagePrint = masterKeyData?.PrintButton == "True";
+    const hasGridPrint = masterKeyData?.GridViewPrintButton == "True";
+
+    if (hasImagePrint && hasGridPrint) {
+      setPrintMenuAnchor(e.currentTarget);
+    } else if (hasGridPrint) {
+      handleOpenGridPrintView();
+    } else {
+      handleOpenPrintPreview();
+    }
   };
 
   useEffect(() => {
@@ -559,6 +590,14 @@ const ReportTopFilterEndAction = ({
         let value = row[field] ?? "";
 
         if (field === "sr") value = idx + 1;
+
+        // auth-action columns: icon 4 = input box (export raw value),
+        // checkbox/switch/check icons = export Yes/No like the grid shows
+        if (col?.IsAuthAction && Number(col?.IsAuthActionIcon) !== 4) {
+          const isActive =
+            String(value) === "1" || value === 1 || value === true;
+          value = isActive ? "Yes" : "No";
+        }
 
         if (isIsoDateTime(value)) {
           const d = new Date(value);
@@ -2645,37 +2684,70 @@ const ReportTopFilterEndAction = ({
                 </Button>
               )}
 
-              {masterKeyData?.PrintButton == "True" && (
-                <Tooltip
-                  title="Print"
-                  isablePortal
-                  PopperProps={{
-                    container: gridContainerRef.current,
-                  }}
-                >
-                  <IconButton
-                    onClick={handleOpenPrintPreview}
-                    sx={{
-                      background: "#e8f5e9",
-                      height: "41px",
-                      width: "41px",
-                      borderRadius: "25px",
-                      backgroundColor: "#dadada",
-                      border: "1px solid #e0e0e0",
-                      color: "#555",
-
-                      transition: "background-color 0.15s ease",
-
-                      "&:hover": {
-                        backgroundColor: "#f4f4f4",
-                      },
+              {(masterKeyData?.PrintButton == "True" ||
+                masterKeyData?.GridViewPrintButton == "True") && (
+                <>
+                  <Tooltip
+                    title="Print"
+                    isablePortal
+                    PopperProps={{
+                      container: gridContainerRef.current,
                     }}
-                    size="medium"
                   >
-                    <PrintRoundedIcon />
-                  </IconButton>
-                </Tooltip>
+                    <IconButton
+                      onClick={handlePrintButtonClick}
+                      sx={{
+                        background: "#e8f5e9",
+                        height: "41px",
+                        width: "41px",
+                        borderRadius: "25px",
+                        backgroundColor: "#dadada",
+                        border: "1px solid #e0e0e0",
+                        color: "#555",
+
+                        transition: "background-color 0.15s ease",
+
+                        "&:hover": {
+                          backgroundColor: "#f4f4f4",
+                        },
+                      }}
+                      size="medium"
+                    >
+                      <PrintRoundedIcon />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Menu
+                    anchorEl={printMenuAnchor}
+                    open={Boolean(printMenuAnchor)}
+                    onClose={() => setPrintMenuAnchor(null)}
+                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                    transformOrigin={{ vertical: "top", horizontal: "right" }}
+                  >
+                    {masterKeyData?.PrintButton == "True" && (
+                      <MenuItem
+                        onClick={() => {
+                          setPrintMenuAnchor(null);
+                          handleOpenPrintPreview();
+                        }}
+                      >
+                        Image View Print
+                      </MenuItem>
+                    )}
+                    {masterKeyData?.GridViewPrintButton == "True" && (
+                      <MenuItem
+                        onClick={() => {
+                          setPrintMenuAnchor(null);
+                          handleOpenGridPrintView();
+                        }}
+                      >
+                        Data Grid View Print
+                      </MenuItem>
+                    )}
+                  </Menu>
+                </>
               )}
+
 
               {masterKeyData?.ImageView === "True" &&
                 (grupEnChekBoxImage?.length > 0 ? (

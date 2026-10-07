@@ -352,7 +352,15 @@ function MetricBlock({ content, raw_value, currency, unit, unit_label, label, re
               color: "var(--primary-btncolor-start)",
             }}
           >
-            {mainLine}
+            {mainValue || mainLine}
+            {trailingUnit && (
+              <Box
+                component="span"
+                sx={{ fontSize: 13, fontWeight: 500, color: "text.secondary", ml: 0.5 }}
+              >
+                {trailingUnit}
+              </Box>
+            )}
           </Typography>
         )}
       </Box>
@@ -1226,6 +1234,88 @@ function ClarifyBlock({ content }) {
   );
 }
 
+// Clarification prompt — the API asks the user to disambiguate a field and
+// provides options; clicking one sends its `message` back as a new question.
+function ChoiceInputBlock({ title, content, options, onSuggestionClick }) {
+  const list = Array.isArray(options) ? options : [];
+  return (
+    <Box
+      sx={{
+        my: 1,
+        p: 1.5,
+        backgroundColor: "common.white",
+        border: "1px solid",
+        borderColor: "grey.100",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.05)",
+        borderRadius: "14px",
+        width: "fit-content",
+        maxWidth: "100%",
+      }}
+    >
+      {title && (
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "text.secondary",
+            textTransform: "capitalize",
+            letterSpacing: "0.4px",
+            mb: 0.5,
+          }}
+        >
+          {title}
+        </Typography>
+      )}
+      {content && (
+        <Typography
+          sx={{
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            color: "text.primary",
+            mb: 1.25,
+          }}
+        >
+          {content}
+        </Typography>
+      )}
+      {list.length > 0 && (
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.75 }}>
+          {list.map((opt, i) => {
+            const label = opt?.label || opt?.value || "";
+            const message = opt?.message || label;
+            if (!label) return null;
+            return (
+              <Button
+                key={i}
+                size="small"
+                onClick={() => onSuggestionClick?.(message)}
+                sx={{
+                  textTransform: "none",
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: "var(--primary-btncolor-start)",
+                  backgroundColor: "#f5f3ff",
+                  border: "1px solid #e9e0ff",
+                  borderRadius: "16px",
+                  padding: "5px 14px",
+                  boxShadow: "none",
+                  width: "fit-content",
+                  "&:hover": {
+                    backgroundColor: "#ede8ff",
+                    boxShadow: "none",
+                  },
+                }}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 function SuggestionsBlock({ items, onSuggestionClick }) {
   const list = Array.isArray(items) ? items : [];
   if (!list.length) return null;
@@ -1292,6 +1382,63 @@ function DownloadBlock({ url }) {
   );
 }
 
+// Compact date-range chip — shows the period the answer was computed over.
+function PeriodBlock({ label, value, period }) {
+  const text = value || period?.label;
+  if (!text) return null;
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 0.5 }}>
+      {label && (
+        <Typography
+          component="span"
+          sx={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "text.secondary",
+            textTransform: "capitalize",
+            letterSpacing: "0.4px",
+          }}
+        >
+          {label}:
+        </Typography>
+      )}
+      <Box
+        component="span"
+        sx={{
+          fontSize: 12,
+          fontWeight: 500,
+          color: "var(--primary-btncolor-start)",
+          backgroundColor: "#f5f3ff",
+          borderRadius: "12px",
+          px: 1.25,
+          py: 0.25,
+        }}
+      >
+        {text}
+      </Box>
+    </Box>
+  );
+}
+
+// Quiet note the backend attaches to an answer (e.g. an assumed date range).
+function AssumptionBlock({ content }) {
+  if (!content) return null;
+  return (
+    <Typography
+      component="p"
+      sx={{
+        fontSize: 11,
+        lineHeight: 1.4,
+        color: "text.disabled",
+        mt: 0.75,
+        fontStyle: "italic",
+      }}
+    >
+      {content}
+    </Typography>
+  );
+}
+
 function SourcesBlock({ items }) {
   const list = (Array.isArray(items) ? items : []).filter(Boolean);
   if (!list.length) return null;
@@ -1323,9 +1470,12 @@ const BLOCK_COMPONENTS = {
   chart: ChartBlock,
   error: ErrorBlock,
   clarify: ClarifyBlock,
+  choice_input: ChoiceInputBlock,
   suggestions: SuggestionsBlock,
   download: DownloadBlock,
   sources: SourcesBlock,
+  period: PeriodBlock,
+  assumption: AssumptionBlock,
 };
 
 export default function ChatBlockRenderer({ blocks, onSuggestionClick }) {
@@ -1356,7 +1506,7 @@ export default function ChatBlockRenderer({ blocks, onSuggestionClick }) {
             <Component
               key={idx}
               {...block}
-              {...(block?.type === "suggestions" ? { onSuggestionClick } : {})}
+              {...(block?.type === "suggestions" || block?.type === "choice_input" ? { onSuggestionClick } : {})}
             />
           );
         } catch {

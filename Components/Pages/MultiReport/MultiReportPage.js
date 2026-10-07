@@ -85,6 +85,42 @@ const MultiReportPage = () => {
     fetchReports();
   }, [fetchReports, syncSessionForIframes]);
 
+  // ✅ Listen for ADD_TAB postMessage from report iframes.
+  // Inside MultiReportPage, report iframes' window.parent = this window,
+  // so the message never reaches the shell unless we forward it.
+  useEffect(() => {
+    const handleMessage = (event) => {
+      const data = event.data;
+      if (!data || data.type !== "ADD_TAB") return;
+      const { TabName, TabUrl } = data.payload || {};
+      if (!TabUrl) return;
+
+      // Embedded in shell → forward up so the shell opens the tab (same as normal flow)
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(data, "*");
+        return;
+      }
+
+      // Standalone → open the linked report as a new tab inside MultiReportPage
+      const existing = openReports.find((r) => r.url === TabUrl);
+      if (existing) {
+        setActiveTabId(existing.id);
+      } else {
+        const newReport = {
+          id: Date.now(),
+          pid: `link_${Date.now()}`,
+          name: TabName || "Report",
+          url: TabUrl,
+        };
+        setOpenReports((prev) => [...prev, newReport]);
+        setActiveTabId(newReport.id);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [openReports]);
+
   useEffect(() => {
     if (activeCardRef.current) {
       activeCardRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });

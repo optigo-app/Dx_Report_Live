@@ -53,6 +53,48 @@
   }
 }
 
+// ✓ pop animation shown inside the cell after delete/restore succeeds
+.auth-success-check {
+  animation: auth_check_pop 0.45s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+}
+
+@keyframes auth_check_pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// row slides right + fades before being removed (delete/restore).
+// `animation` + `forwards` holds the end state while the class is applied —
+// a `transition` would play in reverse and briefly flash the row back into
+// place if the class comes off before React removes the row.
+// `translate` property is used instead of `transform` so the DataGrid's own
+// row transform (virtual scroll positioning) is not overridden.
+.MuiDataGrid-row.row-slide-out {
+  animation: row_slide_out 0.45s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes row_slide_out {
+  0% {
+    translate: 0 0;
+    opacity: 1;
+  }
+  100% {
+    translate: 90px 0;
+    opacity: 0;
+  }
+}
+
 .FilterValue_title {
   font-family: $fontFamily;
   margin: 0px;
@@ -524,8 +566,6 @@
   font-size: 15px;
   min-width: 50px !important;
   height: 37px;
-}
-.btn_FiletrBtnAll:hover {
 }
 
 .dataGrid_Warper {

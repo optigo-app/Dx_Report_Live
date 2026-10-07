@@ -41,6 +41,7 @@ import { GoCopy } from "react-icons/go";
 import Warper from "@/Components/warper";
 import { CallApi } from "@/API/CallApi/CallApi";
 import Print1JewelleryBook from "@/Components/Pages/MainReport/Print1JewelleryBook/Print1JewelleryBook";
+import GridPrintView from "@/Components/Pages/MainReport/GridPrintView/GridPrintView";
 import {
   CustomPagination,
   evaluateRightBaseFormula,
@@ -235,6 +236,7 @@ export default function MainReport({
   hasMoreData,
   loadingMore,
   clearAllDataSignal,
+  reportAlertData
 }) {
   const noFoundImg = "./images/noFound.jpg";
   const [isLoading, setIsLoading] = useState(isLoadingChek);
@@ -263,6 +265,8 @@ export default function MainReport({
   const [showReportMaster, setShowReportMaster] = useState(showBackErrow);
   const [showPrintView, setShowPrintView] = useState(false);
   const [printData, setPrintData] = useState([]);
+  const [showGridPrintView, setShowGridPrintView] = useState(false);
+  const [gridPrintData, setGridPrintData] = useState([]);
   const [navigationData, setNavigationData] = useState();
   const [sideFilterOpen, setSideFilterOpen] = useState(false);
   const [selectedColors, setSelectedColors] = useState([]);
@@ -324,10 +328,15 @@ export default function MainReport({
   const [authLoadingCell, setAuthLoadingCell] = useState(null); // keep state only
   const authLoadingCellRef = useRef(null); // keep ref too
   const sortedFilteredRowsRef = useRef([]);
+  // locally committed auth input (icon 4) values keyed by `recordId||fieldName`
+  // so they survive refetches / filteredRows rebuilds
+  const [authInputOverrides, setAuthInputOverrides] = useState(new Map());
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteModalOpencheck, setDeleteModalOpencheck] = useState(false);
+  const [deleteModalOpencheck, setDeleteModalOpenCheck] = useState(false);
   const [selectedDeleteRow, setSelectedDeleteRow] = useState(null);
+  const [authSuccessCell, setAuthSuccessCell] = useState(null); // {rowId, fieldName} shows ✓ anim
+  const [slideOutRowIds, setSlideOutRowIds] = useState(() => new Set()); // rows animating out
   const [selectedDeleteCol, setSelectedDeleteCol] = useState(null);
   const [deletedRowIds, setDeletedRowIds] = useState(() => new Set());
   useEffect(() => {
@@ -337,24 +346,25 @@ export default function MainReport({
   const [openPopupReportid, setOpenPopupReportid] = useState(null);
   const [openPopupReportParam, setOpenPopupReportParam] = useState(null);
 
-  const [authInputOverrides, setAuthInputOverrides] = useState(new Map());
-
-
   const handleClosePopupReport = () => {
     setOpenPopupReport(false);
     setOpenPopupReportid(null);
     setOpenPopupReportParam(null);
   };
 
-  const handleSaveAreaChart = () => {
+  const handleSaveAreaChart = (name) => {
     setSavedAreaCharts((prev) => [
       ...prev,
       {
         id: Date.now(),
-        title: `Saved Area Chart ${prev.length + 1}`,
+        title: name,
         rows: filteredRows ? [...filteredRows] : [],
       },
     ]);
+  };
+
+  const handleDeleteAreaChart = (id) => {
+    setSavedAreaCharts((prev) => prev.filter((c) => c.id !== id));
   };
 
   const handleMakeNewAreaChart = () => {
@@ -1238,14 +1248,14 @@ export default function MainReport({
                     if (Number(col?.IsAuthActionIcon) == 5) {
                       setSelectedDeleteRow(params.row);
                       setSelectedDeleteCol(col);
-                      setDeleteModalOpencheck(true);
+                      setDeleteModalOpenCheck(true);
                       setDeleteModalOpen(true);
                       return;
                     }
                     if (Number(col?.IsAuthActionIcon) == 6) {
                       setSelectedDeleteRow(params.row);
                       setSelectedDeleteCol(col);
-                      setDeleteModalOpencheck(false)
+                      setDeleteModalOpenCheck(false)
                       setDeleteModalOpen(true);
                       return;
                     }
@@ -1261,9 +1271,31 @@ export default function MainReport({
                   }}
                 >
                   {isLoading ? (
-                    <div className="auth_dot_loader">
-                      <span /><span /><span /><span />
-                    </div>
+                    Number(col?.IsAuthActionIcon) == 5 ||
+                      Number(col?.IsAuthActionIcon) == 6 ? (
+                      <CircularProgress
+                        size={18}
+                        thickness={5}
+                        sx={{
+                          color:
+                            Number(col?.IsAuthActionIcon) == 6
+                              ? "#2e7d32"
+                              : "#ef4444",
+                        }}
+                      />
+                    ) : (
+                      <div className="auth_dot_loader">
+                        <span /><span /><span /><span />
+                      </div>
+                    )
+                  ) : authSuccessCell?.rowId === params.row.id &&
+                    authSuccessCell?.fieldName === col.FieldName ? (
+                    <CheckCircle2
+                      className="auth-success-check"
+                      size={22}
+                      color="#22c55e"
+                      strokeWidth={2.5}
+                    />
                   ) : selectedIconGroup?.id === 1 ? (
                     <Checkbox
                       checked={isActive}
@@ -1966,6 +1998,7 @@ export default function MainReport({
 
     sortedFilteredRowsRef.current = getSortedFilteredRows();
   }, [allColumData, paginationModel, selectionModel, svgIconData]);
+
   // }, [allColumData, grupEnChekBox, paginationModel, selectionModel]);
 
   useEffect(() => {
@@ -2005,6 +2038,10 @@ export default function MainReport({
 
     setDeleteModalOpen(false);
 
+    // show circular loader inside that cell while the API runs
+    authLoadingCellRef.current = { rowId, fieldName };
+    setAuthLoadingCell({ rowId, fieldName });
+
     const keyPrefix = `${pid}_`;
     const matchingKey = Object.keys(sessionStorage).find((key) =>
       key.startsWith(keyPrefix)
@@ -2033,21 +2070,47 @@ export default function MainReport({
     try {
       const response = await ReportCallApi(body, spNumber);
       if (response?.rd[0]?.stat == 1) {
-        // Track the deleted row id so originalRows (useMemo) permanently
-        // excludes it. Row ids stay stable (allRowData is untouched), so the
-        // grid removes the correct row and it will NOT reappear when the
-        // filtering effect re-runs (e.g. checking a Sr# checkbox).
-        setDeletedRowIds((prev) => {
-          const next = new Set(prev);
-          next.add(rowId);
-          return next;
-        });
-        // Immediate UI update until originalRows/filteredRows recompute.
-        setFilteredRows((prev) => prev.filter((row) => row.id !== rowId));
+        authLoadingCellRef.current = null;
+        setAuthLoadingCell(null);
+
+        // 1) animated ✓ inside that cell
+        setAuthSuccessCell({ rowId, fieldName });
+
+        // 2) slide the row out to the right
+        setTimeout(() => {
+          setSlideOutRowIds((prev) => new Set(prev).add(rowId));
+        }, 650);
+
+        // 3) remove the row once the slide-out finishes. Track the id in
+        // deletedRowIds so originalRows (useMemo) permanently excludes it
+        // and it will NOT reappear when the filtering effect re-runs
+        // (e.g. checking a Sr# checkbox).
+        setTimeout(() => {
+          setDeletedRowIds((prev) => {
+            const next = new Set(prev);
+            next.add(rowId);
+            return next;
+          });
+          setFilteredRows((prev) => prev.filter((row) => row.id !== rowId));
+        }, 1100);
+
+        // 4) clear the animation states ONLY after the row is gone — if the
+        // slide-out class came off while the row still existed, the CSS
+        // would snap it back into place and flash it visible again.
+        setTimeout(() => {
+          setAuthSuccessCell(null);
+          setSlideOutRowIds((prev) => {
+            const next = new Set(prev);
+            next.delete(rowId);
+            return next;
+          });
+        }, 1400);
       }
     } catch (err) {
       console.error("DeleteAuth API failed:", err);
     } finally {
+      authLoadingCellRef.current = null;
+      setAuthLoadingCell(null);
       setSelectedDeleteRow(null);
       setSelectedDeleteCol(null);
     }
@@ -2124,11 +2187,11 @@ export default function MainReport({
             formattedRow[c.FieldName] = authInputOverrides.get(key);
           }
         });
+
         return { id: index, ...formattedRow };
       })
       .filter((row) => !deletedRowIds.has(row.id)); // exclude deleted rows
   }, [allRowData, allColumIdWiseName, allColumData, masterValueMap, deletedRowIds, authInputOverrides]); // ✅ allColumData here
-
 
   const isFirstLoad = useRef(true);
   useEffect(() => {
@@ -2933,6 +2996,18 @@ export default function MainReport({
     );
   }
 
+  if (showGridPrintView) {
+    return (
+      <GridPrintView
+        columns={columns}
+        rows={gridPrintData}
+        reportName={reportName}
+        apiRef={apiRef}
+        onClose={() => setShowGridPrintView(false)}
+      />
+    );
+  }
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div
@@ -2955,7 +3030,6 @@ export default function MainReport({
         }}
         ref={gridContainerRef}
       >
-
         <Dialog
           open={deleteModalOpen}
           onClose={() => setDeleteModalOpen(false)}
@@ -2964,7 +3038,7 @@ export default function MainReport({
         >
           <DialogTitle>Confirm {deleteModalOpencheck ? "Delete" : "Restore"}</DialogTitle>
           <DialogContent>
-            {deleteModalOpencheck ? "Are you sure you want to delete this record?" : " After restoring the quotation, if no process is performed on the quotation on the same day, it will be archived again at midnight."}
+            {deleteModalOpencheck ? "Are you sure you want to delete this record?" : "After the quotation is restored, if no process is performed on it during the same day, it will be automatically archived again at midnight."}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDeleteModalOpen(false)} color="inherit">
@@ -3135,17 +3209,20 @@ export default function MainReport({
             />
           </Dialog>
         </LocalizationProvider>
-        {/* <div>
+        {reportAlertData[0]?.ReportAlert && <div>
           <p
             style={{
               margin: "0px",
-              backgroundColor: "#5c6bdc",
-              color: "white",
+              backgroundColor: reportAlertData[0]?.ReportAlertBackgroundColor,
+              color: reportAlertData[0]?.ReportAlertColor,
               textAlign: "center",
               padding: "3px",
               fontSize: "12px"
-            }}>This report is the under maintenace so dont compare the data on it</p>
-        </div> */}
+            }}>
+            {reportAlertData[0]?.ReportAlertMessage}
+          </p>
+        </div>
+        }
         <div style={{ flexShrink: 0 }}>
           <SummaryEndFilteredValue
             setSummaryColumns={setSummaryColumns}
@@ -3170,6 +3247,7 @@ export default function MainReport({
             setFiltersShow={setFiltersShow}
             setFilters={setFilters}
             setDraftFilters={setDraftFilters}
+            setFiltersShowDraf={setFiltersShowDraf}
             onAskOptigoAiPanelToggle={(open) => {
               setIsAskOptigoAiPanelOpen(open);
               if (open) setOptigoPanelWidth(400); // always open at default width
@@ -3219,6 +3297,8 @@ export default function MainReport({
             columns={columns}
             setShowPrintView={setShowPrintView}
             setPrintData={setPrintData}
+            setShowGridPrintView={setShowGridPrintView}
+            setGridPrintData={setGridPrintData}
             grupEnChekBoxImage={grupEnChekBoxImage}
             showImageView={showImageView}
             setShowImageView={setShowImageView}
@@ -3376,39 +3456,16 @@ export default function MainReport({
               {pid == 18418 &&
                 <Grid item md={12} xs={12}>
                   <ChartCard>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: 1,
-                        mb: 1,
-                      }}
-                    >
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={handleSaveAreaChart}
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={handleMakeNewAreaChart}
-                      >
-                        Make New
-                      </Button>
-                    </Box>
                     <AreaChartView
                       filteredRows={filteredRows}
                       sortModel={sortModel}
                       columns={columns}
                       title="Current Area Chart"
+                      onSave={handleSaveAreaChart}
                     />
                   </ChartCard>
                 </Grid>
               }
-
 
               {pid == 18418 &&
                 savedAreaCharts.map((chart) => (
@@ -3419,6 +3476,7 @@ export default function MainReport({
                         sortModel={sortModel}
                         columns={columns}
                         title={chart.title}
+                        onDelete={() => handleDeleteAreaChart(chart.id)}
                       />
                     </ChartCard>
                   </Grid>
@@ -3483,7 +3541,7 @@ export default function MainReport({
           ) : (
             <Warper>
               <DataGrid
-                loading={isLoading}
+                loading={!spliterReportShow && isLoading}
                 apiRef={apiRef}
                 rows={filteredRows ?? []}
                 columns={columns ?? []}
@@ -3492,9 +3550,9 @@ export default function MainReport({
                 rowHeight={37}
                 headerHeight={45}
                 columnHeaderHeight={45}
-                // getRowClassName={(params) =>
-                //   params.row.IsClub === 1 ? "highlight-row" : ""
-                // }
+                getRowClassName={(params) =>
+                  slideOutRowIds.has(params.id) ? "row-slide-out" : ""
+                }
                 sortingOrder={["asc", "desc"]}
                 sortingMode={isMultiSortingEnabled ? "server" : "client"}
                 sortModel={sortModel}

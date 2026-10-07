@@ -50,6 +50,7 @@ const SummaryEndFilteredValue = ({
   setFiltersShow,
   setFilters,
   setDraftFilters,
+  setFiltersShowDraf,
   activeIframeTab,
   onAskOptigoAiPanelToggle,
   optigoPanelWidth,
@@ -100,8 +101,6 @@ const SummaryEndFilteredValue = ({
   }, [columnsHide, allColumData, filteredRows]);
 
   const finalSummaryColumns = [...summaryColumns, ...unicSummaryColumns];
-
-  // ─── build totals map once — reused by renderFormulaSummary ────────────────
   const totalsMap = {};
   if (filteredRows?.length) {
     filteredRows.forEach((row) => {
@@ -113,174 +112,148 @@ const SummaryEndFilteredValue = ({
       });
     });
   }
-
-  // ─── renderSummary: existing + formula cards appended inside same Grid ──────
+  // ─── renderSummary: column + formula cards in ONE list, sorted by display order ───
   const renderSummary = () => {
-    const sortedSummaryColumns = [...finalSummaryColumns].sort((a, b) => {
-      const aOrder = a.SummeryOrder;
-      const bOrder = b.SummeryOrder;
-      if (!aOrder && !bOrder) return 0;
-      if (aOrder && !bOrder) return -1;
-      if (!aOrder && bOrder) return 1;
-      return Number(aOrder) - Number(bOrder);
+    const isCompact = finalSummaryColumns?.length > 16;
+    const cardH = isCompact ? "55px" : "62px";
+    const cardW = isCompact ? "140px" : "180px";
+
+    // order > 0 => valid order, otherwise "no order" (goes to the end)
+    const toOrder = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
+
+    // 1) column summaries -> common card shape
+    const columnItems = (finalSummaryColumns || []).map((col) => {
+      const columnMeta = Object.values(allColumData || {})?.find(
+        (data) => data.FieldName === col.field
+      );
+      const isUniq = String(columnMeta?.IsUniqueCount).toLowerCase() === "true";
+
+      let calculatedValue = 0;
+      if (isUniq) {
+        const allValues = filteredRows?.map((row) => row[col.field]) || [];
+        calculatedValue = [...new Set(allValues)].length;
+      } else {
+        calculatedValue =
+          filteredRows?.reduce((sum, row) => sum + (parseFloat(row[col.field]) || 0), 0) || 0;
+      }
+
+      let displayValue;
+      if (isUniq) {
+        displayValue = calculatedValue;
+      } else if (col?.SummaryValueFormated == 1) {
+        displayValue = Number(calculatedValue).toLocaleString("en-IN", {
+          minimumFractionDigits: col?.SummaryValueKey,
+          maximumFractionDigits: col?.SummaryValueKey,
+        });
+      } else {
+        displayValue = calculatedValue.toFixed(Number(col?.SummaryValueKey));
+      }
+
+      const title =
+        columnMeta?.SummaryTitle == null || columnMeta?.SummaryTitle === ""
+          ? col?.headerNameSub
+          : columnMeta?.SummaryTitle;
+
+      return {
+        key: `col-${col.field}`,
+        order: toOrder(col.SummeryOrder),
+        title,
+        displayValue,
+        unit: col?.SummaryUnit,
+      };
     });
 
-    // formula cards sorted by order
-    const sortedFormulas = isFormulaBasedSummary && summaryViewData?.length
-      ? [...summaryViewData].sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
-      : [];
+    // 2) formula summaries -> same card shape
+    const formulaItems =
+      isFormulaBasedSummary && summaryViewData?.length
+        ? summaryViewData.map((item) => {
+          const result = evaluateFormula(item.formula, totalsMap);
+          const decimal = Number(item.summurydecimal) || 0;
+          return {
+            key: `formula-${item.id}`,
+            order: toOrder(item.order),
+            title: item.summurylabe || item.formula,
+            displayValue: Number(result).toLocaleString("en-IN", {
+              minimumFractionDigits: decimal,
+              maximumFractionDigits: decimal,
+            }),
+            unit: item.summuryunit,
+          };
+        })
+        : [];
+
+    // 3) merge + sort by display order
+    //    - ordered cards first (ascending), same order => columns before formulas (stable sort)
+    //    - cards without order stay at the end (columns first, then formulas)
+    const allItems = [...columnItems, ...formulaItems].sort((a, b) => {
+      if (a.order == null && b.order == null) return 0;
+      if (a.order != null && b.order == null) return -1;
+      if (a.order == null && b.order != null) return 1;
+      return a.order - b.order;
+    });
 
     return (
       <Box sx={{ padding: { xs: "8px", sm: "12px" }, width: "100%", boxSizing: "border-box", flex: 1 }}>
         <Grid container spacing={1} rowSpacing={1} alignItems="stretch">
-
-          {/* ── existing column summaries ── */}
-          {sortedSummaryColumns.map((col) => {
-            const columnMeta = Object.values(allColumData)?.find(
-              (data) => data.FieldName === col.field
-            );
-            const isUniq = String(columnMeta?.IsUniqueCount).toLowerCase() === "true";
-            let calculatedValue = 0;
-            if (isUniq) {
-              const allValues = filteredRows?.map((row) => row[col.field]) || [];
-              calculatedValue = [...new Set(allValues)].length;
-            } else {
-              calculatedValue = filteredRows?.reduce(
-                (sum, row) => sum + (parseFloat(row[col.field]) || 0), 0
-              ) || 0;
-            }
-
-            return (
-              <Grid
-                item
-                xs={6} sm={4} md={3} lg={1.5}
-                key={col.field}
-                sx={{ display: "flex", height: finalSummaryColumns?.length > 16 ? '55px' : '62px', width: finalSummaryColumns?.length > 16 ? '140px' : '180px' }}
+          {allItems.map((item) => (
+            <Grid
+              item
+              xs={6} sm={4} md={3} lg={1.5}
+              key={item.key}
+              sx={{ display: "flex", height: cardH, width: cardW }}
+            >
+              <Card
+                elevation={0}
+                sx={{
+                  display: "flex", flexDirection: "column", justifyContent: "space-between",
+                  width: "100%", padding: "6px 12px", borderRadius: "8px",
+                  backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB",
+                  boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.02)", transition: "border-color 0.2s ease",
+                  "&:hover": { borderColor: "#D1D5DB" },
+                }}
               >
-                <Card
-                  elevation={0}
-                  sx={{
-                    display: "flex", flexDirection: "column", justifyContent: "space-between",
-                    width: "100%", padding: "6px 12px", borderRadius: "8px",
-                    backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB",
-                    boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.02)", transition: "border-color 0.2s ease",
-                    "&:hover": { borderColor: "#D1D5DB" },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between', width: '100%' }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "space-between", width: "100%" }}>
+                  <Typography
+                    sx={{
+                      fontSize: isCompact ? "10px" : "11px", fontWeight: 600, color: "#6B7280",
+                      textTransform: "uppercase", letterSpacing: "0.5px",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}
+                    title={item.title}
+                    className="fontFamily"
+                  >
+                    {item.title}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", alignItems: "baseline", gap: "2px", maxWidth: "100%" }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 600, color: "#424651", lineHeight: 1,
+                      letterSpacing: "-0.5px", whiteSpace: "nowrap",
+                      overflow: "hidden", textOverflow: "ellipsis",
+                      fontSize: isCompact ? "13px" : "16px",
+                    }}
+                    className="fontFamily"
+                  >
+                    {item.displayValue}
+                  </Typography>
+                  {item.unit && (
                     <Typography
-                      sx={{
-                        fontSize: finalSummaryColumns?.length > 16 ? "10px" : "11px", fontWeight: 600, color: "#6B7280",
-                        textTransform: "uppercase", letterSpacing: "0.5px",
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}
-                      title={
-                        columnMeta?.SummaryTitle == null || columnMeta?.SummaryTitle === ""
-                          ? col?.headerNameSub : columnMeta?.SummaryTitle
-                      }
+                      component="span"
+                      sx={{ fontSize: "clamp(12px, 1.2vw, 14px)", fontWeight: 500, color: "#6B7280", marginLeft: "2px" }}
                       className="fontFamily"
                     >
-                      {columnMeta?.SummaryTitle == null || columnMeta?.SummaryTitle === ""
-                        ? col?.headerNameSub : columnMeta?.SummaryTitle}
+                      {item.unit}
                     </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex" }}>
-                    <Box sx={{ display: "flex", alignItems: "baseline", gap: "2px", maxWidth: "100%" }}>
-                      <Typography
-                        sx={{
-                          fontWeight: 600, color: "#424651", lineHeight: 1,
-                          letterSpacing: "-0.5px", whiteSpace: "nowrap",
-                          overflow: "hidden", textOverflow: "ellipsis", fontSize: finalSummaryColumns?.length > 16 ? "13px" : '16px',
-                        }}
-                        className="fontFamily"
-                      >
-                        {isUniq
-                          ? calculatedValue
-                          : col?.SummaryValueFormated == 1
-                            ? Number(calculatedValue).toLocaleString("en-IN", {
-                              minimumFractionDigits: col?.SummaryValueKey,
-                              maximumFractionDigits: col?.SummaryValueKey,
-                            })
-                            : calculatedValue.toFixed(Number(col?.SummaryValueKey))}
-                      </Typography>
-                      {col?.SummaryUnit && (
-                        <Typography component="span"
-                          sx={{ fontSize: "clamp(12px, 1.2vw, 14px)", fontWeight: 500, color: "#6B7280", marginLeft: "2px" }}
-                          className="fontFamily"
-                        >
-                          {col?.SummaryUnit}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                </Card>
-              </Grid>
-            );
-          })}
-
-          {/* ── formula-based summary cards at the end ── */}
-          {sortedFormulas.map((item) => {
-            const result = evaluateFormula(item.formula, totalsMap);
-            const decimal = Number(item.summurydecimal) || 0;
-            const displayValue = Number(result).toLocaleString("en-IN", {
-              minimumFractionDigits: decimal,
-              maximumFractionDigits: decimal,
-            });
-
-            return (
-              <Grid
-                item
-                xs={6} sm={4} md={3} lg={1.5}
-                key={`formula-${item.id}`}
-                sx={{ display: "flex", height: "62px", width: "180px" }}
-              >
-                <Card
-                  elevation={0}
-                  sx={{
-                    display: "flex", flexDirection: "column", justifyContent: "space-between",
-                    width: "100%", padding: "6px 12px", borderRadius: "8px",
-                    backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB",
-                    boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.02)", transition: "border-color 0.2s ease",
-                    "&:hover": { borderColor: "#D1D5DB" },
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                    <Typography
-                      sx={{
-                        fontSize: "11px", fontWeight: 600, color: "#6B7280",
-                        textTransform: "uppercase", letterSpacing: "0.5px",
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}
-                      title={item.summurylabe || item.formula}
-                      className="fontFamily"
-                    >
-                      {item.summurylabe || item.formula}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
-                    <Typography
-                      sx={{
-                        fontSize: "16px", fontWeight: 600, color: "#424651", lineHeight: 1,
-                        letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}
-                      className="fontFamily"
-                    >
-                      {displayValue}
-                    </Typography>
-                    {item.summuryunit && (
-                      <Typography component="span"
-                        sx={{ fontSize: "12px", fontWeight: 500, color: "#6B7280", marginLeft: "2px" }}
-                        className="fontFamily"
-                      >
-                        {item.summuryunit}
-                      </Typography>
-                    )}
-                  </Box>
-                </Card>
-              </Grid>
-            );
-          })}
-
+                  )}
+                </Box>
+              </Card>
+            </Grid>
+          ))}
         </Grid>
       </Box>
     );
@@ -303,6 +276,15 @@ const SummaryEndFilteredValue = ({
     // 1️⃣ remove from filtersShow (keyed by headerNamesingle) → stops useEffect re-adding
     if (setFiltersShow) {
       setFiltersShow((prev) => {
+        const copy = { ...prev };
+        delete copy[headerName];
+        return copy;
+      });
+    }
+
+    // 1b️⃣ remove from filtersShowDraf → clears the count badge on the on-screen filter
+    if (setFiltersShowDraf) {
+      setFiltersShowDraf((prev) => {
         const copy = { ...prev };
         delete copy[headerName];
         return copy;
@@ -441,7 +423,7 @@ const SummaryEndFilteredValue = ({
                           filteredValueState.map((data, i) => (
                             <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 0.75, borderRadius: "999px" }}>
                               <Typography variant="caption" className="fontFamily"
-                                sx={{ fontWeight: 500, color: "#71717A", fontSize: "13px", letterSpacing: "-0.01em", display:'flex', gap: '5px', alignItems: 'center' }}>
+                                sx={{ fontWeight: 500, color: "#71717A", fontSize: "13px", letterSpacing: "-0.01em", display: 'flex', gap: '5px', alignItems: 'center' }}>
                                 <span
                                   role="button"
                                   tabIndex={0}

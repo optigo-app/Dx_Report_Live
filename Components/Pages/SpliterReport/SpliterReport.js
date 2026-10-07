@@ -108,7 +108,9 @@ export default function SpliterReport({
   isPrintColumn,
   isRightBaseColumMaster,
   onSearchFilter,
-  reportsExcelRights
+  reportsExcelRights,
+  reportAlertData,
+  CustomizeUserFirstPanelData
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [spData, setSpData] = useState(null);
@@ -153,6 +155,15 @@ export default function SpliterReport({
     return spliterReportSecondPanel;
   }, [activeSecondPanelOption, spliterReportSecondPanel, spliterReportSecondPanelSecondoption]);
   // ──────────────────────────────────────────────────────────────────────────
+
+  const [activeFirstPanelField, setActiveFirstPanelField] = useState(spliterReportFirstPanel);
+  useEffect(() => {
+    setActiveFirstPanelField(spliterReportFirstPanel);
+  }, [spliterReportFirstPanel]);
+  const [firstPanelLimit, setFirstPanelLimit] = useState(100);
+  useEffect(() => {
+    setFirstPanelLimit(100);
+  }, [firstPanelSearch, activeFirstPanelField]);
 
   useEffect(() => {
     const now = new Date();
@@ -264,29 +275,44 @@ export default function SpliterReport({
     return dropdownFilteredRd3 ?? spData?.rd3 ?? [];
   }, [dropdownFilteredRd3, spData]);
 
-  const uniqueValuesForFirstPanel = useMemo(() => {
-    if (!spData?.rd2 || !activeRd3.length) return [];
-    const map = spData.rd2[0];
-    const key = Object.keys(map).find((k) => map[k] === spliterReportFirstPanel);
-    if (!key) return [];
-    return [...new Set(activeRd3.map((x) => x[key]))];
-  }, [activeRd3, spData, spliterReportFirstPanel]);
+  // Active column ki internal key
+  const firstPanelKey = useMemo(() => {
+    const m = spData?.rd2?.[0] || {};
+    return Object.keys(m).find((k) => m[k] === activeFirstPanelField) ?? null;
+  }, [spData, activeFirstPanelField]);
+
+  // Ek hi pass mein value -> rows ka group (fast)
+  const firstPanelGroups = useMemo(() => {
+    const groups = new Map();
+    if (!firstPanelKey) return groups;
+    activeRd3.forEach((row) => {
+      const v = row[firstPanelKey];
+      if (v === null || v === undefined || v === "") return; // blank values card nahi banenge
+      if (!groups.has(v)) groups.set(v, []);
+      groups.get(v).push(row);
+    });
+    return groups;
+  }, [activeRd3, firstPanelKey]);
+
+  const uniqueValuesForFirstPanel = useMemo(
+    () => [...firstPanelGroups.keys()],
+    [firstPanelGroups]
+  );
 
   // ─── UPDATED: use activeSecondPanelField instead of spliterReportSecondPanel ──
   const uniqueValuesForSecondPanel = useMemo(() => {
     if (!activeSecondPanelField || !spData?.rd2 || !activeRd3.length) return [];
     const map = spData.rd2[0];
-    const firstKey = Object.keys(map).find((k) => map[k] === spliterReportFirstPanel);
     const secondKey = Object.keys(map).find((k) => map[k] === activeSecondPanelField);
-    if (!firstKey || !secondKey) return [];
+    if (!firstPanelKey || !secondKey) return [];
 
     if (selectedFirstPanelKey === "__ALL__") {
       return [...new Set(activeRd3.map((r) => r[secondKey]))];
     }
-    if (!selectedFirstPanelKey) return [];
-    const filteredRows = activeRd3.filter((row) => row[firstKey] === selectedFirstPanelKey);
-    return [...new Set(filteredRows.map((r) => r[secondKey]))];
-  }, [activeRd3, spData, activeSecondPanelField, selectedFirstPanelKey, spliterReportFirstPanel]);
+    if (selectedFirstPanelKey == null) return [];
+    const rows = firstPanelGroups.get(selectedFirstPanelKey) || [];
+    return [...new Set(rows.map((r) => r[secondKey]))];
+  }, [activeRd3, spData, activeSecondPanelField, selectedFirstPanelKey, firstPanelKey, firstPanelGroups]);
   // ────────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -388,11 +414,7 @@ export default function SpliterReport({
   const handleFirstPanelSelection = (value, rd3Override = null) => {
     const base = rd3Override ?? activeRd3;
     setSelectedFirstPanelKey(value);
-    if (spliterReportSecondPanelShowAll) {
-      setSelectedSecondPanelKey("__ALL__");
-    } else {
-      setSelectedSecondPanelKey(null);
-    }
+    setSelectedSecondPanelKey(spliterReportSecondPanelShowAll ? "__ALL__" : null);
 
     if (value === "__ALL__") {
       setFilteredReportData({ ...spData, rd3: base });
@@ -400,27 +422,23 @@ export default function SpliterReport({
       return;
     }
 
-    const map = spData?.rd2?.[0];
-    const key = Object.keys(map).find((k) => map[k] === spliterReportFirstPanel);
-    if (!key) return;
-    const rows = base.filter((r) => r[key] === value);
+    if (!firstPanelKey) return;
+    const rows = base.filter((r) => r[firstPanelKey] === value);
     setFilteredReportData({ ...spData, rd3: rows });
     setFirstPanelSummary(calculateSummaryForFirstPanel(rows));
   };
 
-  // ─── UPDATED: use activeSecondPanelField ────────────────────────────────
   const handleSecondPanelSelection = (value) => {
     setSelectedSecondPanelKey(value);
 
-    const map = spData?.rd2?.[0];
-    const firstKey = Object.keys(map).find((k) => map[k] === spliterReportFirstPanel);
+    const map = spData?.rd2?.[0] || {};
     const secondKey = Object.keys(map).find((k) => map[k] === activeSecondPanelField);
-    if (!firstKey || !secondKey) return;
+    if (!firstPanelKey || !secondKey) return;
 
     const firstFiltered =
       selectedFirstPanelKey === "__ALL__"
         ? activeRd3
-        : activeRd3.filter((r) => r[firstKey] === selectedFirstPanelKey);
+        : activeRd3.filter((r) => r[firstPanelKey] === selectedFirstPanelKey);
 
     if (value === "__ALL__") {
       setFilteredReportData({ ...spData, rd3: firstFiltered });
@@ -518,8 +536,8 @@ export default function SpliterReport({
     return masterValueMap[masterInfo.MasterId]?.[rawValue] ?? rawValue;
   };
 
-  const filteredColumns = spData?.rd1?.filter((col) =>
-    spliterReportFirstPanel.includes(col.FieldName)
+  const filteredColumns = spData?.rd1?.filter(
+    (col) => col.FieldName === activeFirstPanelField
   );
 
   // ─── UPDATED: derive header for second panel from activeSecondPanelField ──
@@ -529,11 +547,9 @@ export default function SpliterReport({
   // ────────────────────────────────────────────────────────────────────────────
 
   const getSummaryForValue = (value) => {
-    if (!activeRd3.length || !spliterReportFirstPanel) return {};
+    if (!activeRd3.length || !activeFirstPanelField) return {};
     if (value === "__ALL__") return calculateSummaryForFirstPanel(activeRd3);
-    const key = Object.keys(spData.rd2[0]).find((k) => spData.rd2[0][k] === spliterReportFirstPanel);
-    const rows = activeRd3.filter((r) => r[key] === value);
-    return calculateSummaryForFirstPanel(rows);
+    return calculateSummaryForFirstPanel(firstPanelGroups.get(value) || []);
   };
 
   const calculateSummaryForSecondPanel = (rows) => {
@@ -576,10 +592,33 @@ export default function SpliterReport({
   };
 
   const map = spData?.rd2?.[0] || {};
-  const firstKey = Object.keys(map).find((k) => map[k] === spliterReportFirstPanel);
+  const firstKey = firstPanelKey;
   // ─── UPDATED: secondKey always tracks active field ────────────────────────
   const secondKey = Object.keys(map).find((k) => map[k] === activeSecondPanelField);
   // ────────────────────────────────────────────────────────────────────────────
+
+  // Dropdown options: report ke saare columns
+  const firstPanelFieldOptions = useMemo(() => {
+    const rd2 = spData?.rd2?.[0] || {};
+    const available = new Set(Object.values(rd2));
+    const list = (spData?.rd1 || [])
+      .filter(
+        (c) =>
+          available.has(c.FieldName) &&
+          (c.HideColumn !== "True" || c.FieldName === spliterReportFirstPanel) &&
+          c.ColumnType === "String"
+      )
+      .map((c) => ({ field: c.FieldName, label: c.HeaderName || c.FieldName }));
+    return list;
+  }, [spData, spliterReportFirstPanel]);
+
+  const handleFirstPanelFieldChange = (e) => {
+    setActiveFirstPanelField(e.target.value);
+    setSelectedFirstPanelKey(null);   // auto-select effect naye column ka pehla value/ALL chun lega
+    setSelectedSecondPanelKey(null);
+    setFirstPanelSearch("");
+    setFirstPanelSummary({});
+  };
 
   const hasFirstPanelData = useMemo(() => {
     return Array.isArray(uniqueValuesForFirstPanel) && uniqueValuesForFirstPanel.length > 0;
@@ -622,9 +661,11 @@ export default function SpliterReport({
     if (!hasFirstPanelData) return [];
     if (!firstPanelSearch) return uniqueValuesForFirstPanel;
     return uniqueValuesForFirstPanel.filter((v) =>
-      String(getDisplayValue(v, spliterReportFirstPanel)).toLowerCase().includes(firstPanelSearch.toLowerCase())
+      String(getDisplayValue(v, activeFirstPanelField)).toLowerCase().includes(firstPanelSearch.toLowerCase())
     );
-  }, [uniqueValuesForFirstPanel, firstPanelSearch, hasFirstPanelData]);
+  }, [uniqueValuesForFirstPanel, firstPanelSearch, hasFirstPanelData, activeFirstPanelField, masterData]);
+
+  const visibleFirstPanelValues = filteredFirstPanelValues.slice(0, firstPanelLimit);
 
   // ─── UPDATED: search against activeSecondPanelField display values ────────
   const filteredSecondPanelValues = useMemo(() => {
@@ -799,7 +840,7 @@ export default function SpliterReport({
                 >
                   {selectedFirstPanelKey === "__ALL__"
                     ? "ALL"
-                    : getDisplayValue(selectedFirstPanelKey, spliterReportFirstPanel)}
+                    : getDisplayValue(selectedFirstPanelKey, activeFirstPanelField)}
                 </Box>
               )}
             </Box>
@@ -1041,6 +1082,51 @@ export default function SpliterReport({
                 tooltipText={`Select ${Array.isArray(filteredColumns) && filteredColumns[0]?.HeaderName || "item"} to filter report data`}
               />
 
+              {/* Group-by column dropdown */}
+              {CustomizeUserFirstPanelData && firstPanelFieldOptions.length > 0 && (
+                <Box sx={{ mb: 1 }}>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={activeFirstPanelField || ""}
+                      onChange={handleFirstPanelFieldChange}
+                      IconComponent={UnfoldMoreRoundedIcon}
+                      MenuProps={{
+                        disableScrollLock: true,
+                        PaperProps: {
+                          sx: {
+                            maxHeight: 320,
+                            borderRadius: "8px",
+                            mt: 0.5,
+                            border: "1px solid #e4e4e7",
+                            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+                          },
+                        },
+                      }}
+                      sx={{
+                        fontSize: "0.8rem",
+                        fontWeight: 500,
+                        borderRadius: "6px",
+                        backgroundColor: "#fff",
+                        "& .MuiSelect-select": { py: "7px", px: "10px" },
+                        "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e4e4e7" },
+                        "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#a1a1aa" },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#18181b",
+                          borderWidth: "1px",
+                        },
+                        "& .MuiSelect-icon": { color: "#71717a", right: "8px" },
+                      }}
+                    >
+                      {firstPanelFieldOptions.map((opt) => (
+                        <MenuItem key={opt.field} value={opt.field} sx={{ fontSize: "0.8rem" }}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+
               {/* Search box */}
               {hasFirstPanelData && (
                 <Box sx={{ mb: 1 }}>
@@ -1068,15 +1154,24 @@ export default function SpliterReport({
                         summary={getSummaryForValue("__ALL__")}
                       />
                     )}
-                    {filteredFirstPanelValues?.map((v) => (
+                    {visibleFirstPanelValues.map((v) => (
                       <PanelCard
-                        key={v}
-                        label={getDisplayValue(v, spliterReportFirstPanel)}
+                        key={String(v)}
+                        label={getDisplayValue(v, activeFirstPanelField)}
                         selected={selectedFirstPanelKey === v}
                         onClick={() => handleFirstPanelSelection(v)}
                         summary={getSummaryForValue(v)}
                       />
                     ))}
+                    {filteredFirstPanelValues.length > firstPanelLimit && (
+                      <Button
+                        size="small"
+                        onClick={() => setFirstPanelLimit((p) => p + 100)}
+                        sx={{ textTransform: "none", fontSize: "0.75rem" }}
+                      >
+                        Show more ({filteredFirstPanelValues.length - firstPanelLimit} left)
+                      </Button>
+                    )}
                   </>
                 ) : (
                   <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "0.78rem" }}>
@@ -1289,6 +1384,7 @@ export default function SpliterReport({
             isRightBaseColumMaster={isRightBaseColumMaster}
             reportsExcelRights={reportsExcelRights}
             clearAllDataSignal={clearAllDataSignal}
+            reportAlertData={reportAlertData}
           />
         </div>
       </Box>

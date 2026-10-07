@@ -3,9 +3,7 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogContent,
-  DialogTitle,
+  Collapse,
   IconButton,
   InputBase,
   Paper,
@@ -13,7 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
-import { Check, X, MessageSquare } from "lucide-react";
+import { Check } from "lucide-react";
 import { FaThumbsUp, FaThumbsDown, FaRegThumbsUp, FaRegThumbsDown } from "react-icons/fa";
 import submitFeedback from "@/API/LLMApi/optigoFeedback";
 
@@ -26,8 +24,6 @@ const DOWNVOTE_REASONS = [
   { id: "other", label: "Other / More" },
 ];
 
-const SEVERITY_LEVELS = ["Low", "Medium", "High"];
-
 export default function FeedbackButtons({
   sessionId,
   question,
@@ -37,9 +33,8 @@ export default function FeedbackButtons({
 }) {
   const theme = useTheme();
   const [vote, setVote] = useState(null); // "up" | "down" | null
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState(null);
-  const [severity, setSeverity] = useState("Medium");
   const [comment, setComment] = useState("");
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -84,7 +79,7 @@ export default function FeedbackButtons({
       return;
     }
     setVote("down");
-    setDialogOpen(true);
+    setFormOpen(true);
   };
 
   const handleReasonSelect = (reasonId) => {
@@ -93,18 +88,15 @@ export default function FeedbackButtons({
 
   const handleSubmitDownvote = () => {
     const reasonLabel = DOWNVOTE_REASONS.find((r) => r.id === selectedReason)?.label;
-    const taggedReason = severity ? `${reasonLabel} | severity: ${severity}` : reasonLabel;
-    handleSubmit("down", taggedReason, comment);
-    setDialogOpen(false);
+    handleSubmit("down", reasonLabel, comment);
+    setFormOpen(false);
     setSelectedReason(null);
-    setSeverity("Medium");
     setComment("");
   };
 
   const handleCancelDownvote = () => {
-    setDialogOpen(false);
+    setFormOpen(false);
     setSelectedReason(null);
-    setSeverity("Medium");
     setComment("");
     setVote(null);
   };
@@ -186,47 +178,30 @@ export default function FeedbackButtons({
         </Tooltip>
       </Box>
 
-      {/* Feedback Dialog — like ChatGPT */}
-      <Dialog
-        open={dialogOpen}
-        onClose={handleCancelDownvote}
-        maxWidth="sm"
-        fullWidth
-        slotProps={{
-          paper: {
-            sx: { borderRadius: "16px", overflow: "hidden" },
-          },
-        }}
-      >
-        <DialogTitle
+      {/* Inline feedback form — expands below the whole actions row (order
+          keeps it after Regenerate even though it's rendered earlier). */}
+      <Collapse in={formOpen} sx={{ width: "100%", flexBasis: "100%", order: 10 }}>
+        <Paper
+          elevation={0}
           sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            pb: 1,
-            fontSize: 16,
-            fontWeight: 600,
-            color: "text.primary",
-            borderBottom: "1px solid", borderBottomColor: "grey.100",
+            mt: 0.75,
+            mb: 0.5,
+            p: 2,
+            borderRadius: "14px",
+            backgroundColor: "common.white",
+            boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+            width: "100%",
           }}
         >
-          <MessageSquare size={18} color={theme.palette.error.main} />
-          Share Feedback
-          <IconButton
-            onClick={handleCancelDownvote}
-            size="small"
-            sx={{ ml: "auto", color: "text.disabled" }}
-          >
-            <X size={18} />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2, pb: 2.5 }}>
-          <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 1.5 }}>
-            What was wrong with this response?
+          <Typography sx={{ fontSize: 14, fontWeight: 600, color: "text.primary", mb: 0.5 }}>
+            What went wrong?
+          </Typography>
+          <Typography sx={{ fontSize: 12.5, color: "text.secondary", mb: 2 }}>
+            Your feedback helps make Optigo AI better for everyone.
           </Typography>
 
-          {/* Reason chips */}
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 2 }}>
+          {/* Reason chips — one per row */}
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1, mb: 2 }}>
             {DOWNVOTE_REASONS.map((reason) => (
               <Chip
                 key={reason.id}
@@ -234,9 +209,10 @@ export default function FeedbackButtons({
                 onClick={() => handleReasonSelect(reason.id)}
                 sx={{
                   fontSize: 12.5,
-                  height: 30,
+                  height: 32,
                   cursor: "pointer",
                   borderRadius: "16px",
+                  px: 1,
                   backgroundColor:
                     selectedReason === reason.id
                       ? alpha(theme.palette.error.main, 0.08)
@@ -257,77 +233,36 @@ export default function FeedbackButtons({
             ))}
           </Box>
 
-          {/* Severity selector */}
-          <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 1 }}>
-            How severe is this issue?
-          </Typography>
-          <Box sx={{ display: "flex", gap: 0.75, mb: 2 }}>
-            {SEVERITY_LEVELS.map((level) => (
-              <Chip
-                key={level}
-                label={level}
-                onClick={() => setSeverity(level)}
-                sx={{
-                  fontSize: 12,
-                  height: 26,
-                  cursor: "pointer",
-                  borderRadius: "13px",
-                  backgroundColor:
-                    severity === level
-                      ? alpha(theme.palette.error.main, 0.08)
-                      : "transparent",
-                  color: severity === level ? "error.main" : "text.secondary",
-                  border: "1px solid",
-                  borderColor:
-                    severity === level ? "error.light" : "divider",
-                  fontWeight: severity === level ? 600 : 400,
-                  "&:hover": {
-                    backgroundColor: alpha(theme.palette.error.main, 0.12),
-                  },
-                }}
+          {/* Comment field — only for "Other / More" */}
+          {selectedReason === "other" && (
+            <Paper
+              elevation={0}
+              sx={{
+                border: "1px solid", borderColor: "divider",
+                borderRadius: "12px",
+                px: 1.25,
+                py: 0.5,
+                mb: 1.25,
+                "&:focus-within": {
+                  borderColor: "error.main",
+                },
+              }}
+            >
+              <InputBase
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Tell us more…"
+                multiline
+                minRows={1}
+                maxRows={3}
+                autoFocus
+                sx={{ fontSize: 13, color: "text.primary", width: "100%" }}
               />
-            ))}
-          </Box>
-
-          {/* Comment field */}
-          <Paper
-            elevation={0}
-            sx={{
-              border: "1px solid", borderColor: "divider",
-              borderRadius: "16px",
-              px: 1.5,
-              py: 0.5,
-              mb: 2,
-              "&:focus-within": {
-                borderColor: "error.main",
-              },
-            }}
-          >
-            <InputBase
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Add more detail (optional)"
-              multiline
-              minRows={2}
-              maxRows={4}
-              sx={{ fontSize: 13, color: "text.primary", width: "100%" }}
-            />
-          </Paper>
-
-          {/* Privacy note */}
-          <Typography
-            sx={{
-              fontSize: 11,
-              color: "text.disabled",
-              fontStyle: "italic",
-              mb: 2,
-            }}
-          >
-            Feedback is used to improve responses. It is not linked to your account.
-          </Typography>
+            </Paper>
+          )}
 
           {/* Action buttons */}
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.25 }}>
             <Button
               onClick={handleCancelDownvote}
               sx={{
@@ -335,6 +270,8 @@ export default function FeedbackButtons({
                 color: "text.secondary",
                 fontSize: 13,
                 borderRadius: "16px",
+                minWidth: 0,
+                px: 2,
                 "&:hover": { backgroundColor: "grey.50" },
               }}
             >
@@ -344,13 +281,14 @@ export default function FeedbackButtons({
               variant="contained"
               onClick={handleSubmitDownvote}
               disabled={!selectedReason}
-              startIcon={<Check size={16} />}
+              startIcon={<Check size={15} />}
               sx={{
                 textTransform: "none",
                 fontSize: 13,
                 borderRadius: "16px",
                 backgroundColor: "error.main",
                 boxShadow: "none",
+                px: 1.5,
                 "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
                 "&.Mui-disabled": {
                   backgroundColor: "error.light",
@@ -358,11 +296,11 @@ export default function FeedbackButtons({
                 },
               }}
             >
-              Submit Feedback
+              Submit
             </Button>
           </Box>
-        </DialogContent>
-      </Dialog>
+        </Paper>
+      </Collapse>
 
       {/* Confirmation toast — full-width dark bar sliding up from the bottom
           of the message area (anchored to the drawer's relative wrapper). */}

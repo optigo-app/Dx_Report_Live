@@ -35,6 +35,7 @@ export default function MessageActions({ sessionId, raw, onRegenerate }) {
       sx={{
         display: "flex",
         alignItems: "center",
+        flexWrap: "wrap",
         gap: 0.25,
         mt: 0.5,
       }}

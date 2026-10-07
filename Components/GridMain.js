@@ -48,11 +48,14 @@ const GridMain = ({
   reportsExcelRights,
   datefilterServerSide,
   popupParamiter,
+  reportAlertData,
+  isShowPreFilterModal,
+  CustomizeUserFirstPanelData
 }) => {
-  
+  const alertData = reportAlertData?.[0];
   // http://dxreport.web/beta/?CN=UkRTRF8yMDI2MDgxMDA1MTAyOV8xNDFjNzMyZWFjZjA0ODliOWE0Nzk5NzQzZGM2ODgyZQ==&pid=18577&Token=BBB55FCD-7994-F111-B3D1-F875A496BA9D
   // http://dxreport.web/beta/?CN=UkRTRF8yMDI2MDgxMDA1MTE0OV9jMGFmMjc1ZDg4MGE0MjUwODg4MTNiMmMyZWU2ZDM5Nw==&pid=18380&Token=0F6A5AFD-7994-F111-B3D1-F875A496BA9D
-    
+
   // useEffect(() => {
   //     Cookies.set(
   //       "RDSD_20251007040824_ddaf7208d8364814bfb417092784a7b1",
@@ -76,6 +79,36 @@ const GridMain = ({
   //     }))
   //     window.location.replace("http://localhost:6006/beta/?CN=UkRTRF8yMDI2MDQwOTEwMDkwOV9iZGIzY2Y1NjRiNDc0NWJmYWY4NjNkYjBhZmI2MzZmNg==&pid=18577&Token=5F383721-FC33-F111-B3AE-F875A496BA9D");
   //   }, []);
+
+  if (alertData?.ReportAlertFull) {
+    return (
+      <div style={{ height: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          height="85vh"
+          p={2}
+        >
+          <Paper
+            elevation={3}
+            sx={{
+              maxWidth: 900,
+              width: "100%",
+              p: 4,
+              borderRadius: "20px",
+              textAlign: "center",
+              backgroundColor: alertData?.ReportAlertBackgroundColor
+            }}
+          >
+            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: reportAlertData[0]?.ReportAlertColor }}>
+              {alertData?.ReportAlertMessage}
+            </Typography>
+          </Paper>
+        </Box>
+      </div>
+    );
+  }
 
   if (tokenMissing) {
     return (
@@ -111,6 +144,7 @@ const GridMain = ({
       </div>
     );
   }
+
   if (!ready) return null;
 
   return (
@@ -153,7 +187,10 @@ const GridMain = ({
       reportsExcelRights={reportsExcelRights}
       datefilterServerSide={datefilterServerSide}
       popupParamiter={popupParamiter}
-      />
+      reportAlertData={reportAlertData}
+      isShowPreFilterModal={isShowPreFilterModal}
+      CustomizeUserFirstPanelData={CustomizeUserFirstPanelData}
+    />
   );
 };
 
