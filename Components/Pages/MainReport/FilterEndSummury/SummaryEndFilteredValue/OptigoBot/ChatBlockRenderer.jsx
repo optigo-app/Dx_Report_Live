@@ -16,9 +16,13 @@ import {
   List,
   ListItem,
   ListItemText,
+  Chip,
   Tooltip,
 } from "@mui/material";
-import { Maximize2, X, Download } from "lucide-react";
+import { Maximize2, X, Download, Check, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { alpha } from "@mui/material/styles";
 import {
   Chart as ChartJS,
@@ -121,6 +125,7 @@ const parseNumeric = (value) => {
 const indianCurrencyFormatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
+  minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
 
@@ -142,13 +147,17 @@ const isMoneyColumn = (columnName) => {
   return MONEY_COLUMN_KEYWORDS.some((kw) => lower.includes(kw));
 };
 
-const formatCell = (value, columnName) => {
+// Display backend values as returned — never inject a currency symbol the
+// API didn't send (₹ only appears when the backend formats it or declares
+// unit: "currency" on a metric card).
+const formatCell = (value) => {
   if (isNameLike(value)) return titleCase(value);
-  const raw = String(value ?? "");
-  if (/[₹$]/.test(raw) || (/[,]/.test(raw) && isNumericLike(raw))) return raw;
-  if (isNumericLike(value) && isMoneyColumn(columnName)) return formatCurrency(value);
   return value;
 };
+
+// Plain grouped number — used in chart tooltips where no currency is declared.
+const formatPlainNumber = (v) =>
+  v == null || isNaN(v) ? String(v ?? "") : Number(v).toLocaleString("en-IN");
 
 const formatCompactNumber = (n) => {
   if (n == null || isNaN(n)) return "";
@@ -201,8 +210,8 @@ function HeadingBlock({ content }) {
   return (
     <Typography
       sx={{
-        fontSize: 16,
-        fontWeight: 700,
+        fontSize: 15,
+        fontWeight: 500,
         color: "text.primary",
         mt: 0.5,
         mb: 0.75,
@@ -234,7 +243,37 @@ const extractFormattedValue = (content) => {
   return matches ? matches[matches.length - 1].trim() : "";
 };
 
-function MetricBlock({ content, raw_value, currency, unit, unit_label, label, record_count, value, subtext }) {
+// Period-comparison badge — green up / red down / grey flat|new.
+function DeltaBadge({ delta, trend }) {
+  if (!delta) return null;
+  const tone =
+    trend === "up"
+      ? { bg: "#f0fdf4", fg: "success.dark", border: "#bbf7d0", Icon: TrendingUp }
+      : trend === "down"
+        ? { bg: "#fef2f2", fg: "error.main", border: "#fecaca", Icon: TrendingDown }
+        : { bg: "grey.100", fg: "text.secondary", border: "grey.300", Icon: Minus };
+  const { Icon } = tone;
+  return (
+    <Chip
+      size="small"
+      icon={<Icon size={13} />}
+      label={delta}
+      sx={{
+        height: 22,
+        fontSize: 11.5,
+        fontWeight: 600,
+        backgroundColor: tone.bg,
+        color: tone.fg,
+        border: "1px solid",
+        borderColor: tone.border,
+        "& .MuiChip-icon": { color: "inherit", ml: 0.75 },
+        "& .MuiChip-label": { px: 0.75 },
+      }}
+    />
+  );
+}
+
+function MetricBlock({ content, raw_value, currency, unit, unit_label, label, record_count, value, subtext, delta, trend, comparison }) {
   const lines = String(content || "").split("\n").filter(Boolean);
   const mainLine = lines[0] || "";
   const subLines = [...lines.slice(1), ...(subtext ? [subtext] : [])];
@@ -307,7 +346,7 @@ function MetricBlock({ content, raw_value, currency, unit, unit_label, label, re
             title={`Exact: ${tooltipText}`}
             placement="top"
             arrow
-            componentsProps={{
+            slotProps={{
               tooltip: {
                 sx: {
                   backgroundColor: "grey.900",
@@ -364,6 +403,16 @@ function MetricBlock({ content, raw_value, currency, unit, unit_label, label, re
           </Typography>
         )}
       </Box>
+      {(delta || comparison) && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.75, flexWrap: "wrap" }}>
+          <DeltaBadge delta={delta} trend={trend} />
+          {comparison && (
+            <Typography component="span" sx={{ fontSize: 11.5, color: "text.secondary" }}>
+              {comparison}
+            </Typography>
+          )}
+        </Box>
+      )}
       {(subLines.length > 0 || record_count != null) && (
         <Box
           sx={{
@@ -532,7 +581,7 @@ function renderTableContent(columns, rows, colIsNumeric, colAlignRight) {
                         —
                       </Typography>
                     ) : (
-                      formatCell(cell, colName)
+                      formatCell(cell)
                     )}
                   </TableCell>
                 );
@@ -542,48 +591,6 @@ function renderTableContent(columns, rows, colIsNumeric, colAlignRight) {
         })}
       </TableBody>
     </Table>
-  );
-}
-
-// Totals strip pinned at the top-right of a table card — sums each money
-// column so the grand total is visible without scrolling to the bottom.
-function TableTotalsBar({ moneyTotals }) {
-  if (!moneyTotals.length) return null;
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "flex-end",
-        alignItems: "baseline",
-        flexWrap: "wrap",
-        columnGap: 2,
-        rowGap: 0.25,
-        px: 1.5,
-        py: 1,
-        borderBottom: "1px solid",
-        borderBottomColor: "grey.100",
-        backgroundColor: "grey.50",
-      }}
-    >
-      {moneyTotals.map((t, i) => (
-        <Typography
-          key={i}
-          sx={{ fontSize: 13.5, fontWeight: 500, color: "text.secondary" }}
-        >
-          Total {t.col}:{" "}
-          <Box
-            component="span"
-            sx={{
-              color: "text.primary",
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            {formatCurrency(t.sum)}
-          </Box>
-        </Typography>
-      ))}
-    </Box>
   );
 }
 
@@ -598,20 +605,6 @@ function TableBlock({ columns, rows }) {
   );
   // Right-align only money columns; rank/serial columns stay left-aligned.
   const colAlignRight = columns.map((col) => isMoneyColumn(col) && !isRankColumn(col));
-
-  // Sum each money column for the totals strip (skip columns with no data).
-  const moneyTotals = columns
-    .map((col, ci) => {
-      if (!colAlignRight[ci]) return null;
-      let hasNumeric = false;
-      const sum = rows.reduce((acc, row) => {
-        const n = parseNumeric(row[ci]);
-        if (!isNaN(n)) hasNumeric = true;
-        return isNaN(n) ? acc : acc + n;
-      }, 0);
-      return hasNumeric ? { col, sum } : null;
-    })
-    .filter(Boolean);
 
   const showExpand = rows.length > TABLE_EXPAND_THRESHOLD;
 
@@ -634,7 +627,6 @@ function TableBlock({ columns, rows }) {
           },
         }}
       >
-        <TableTotalsBar moneyTotals={moneyTotals} />
         <TableContainer
           sx={{
             // Height limit with scroll for big tables.
@@ -718,7 +710,6 @@ function TableBlock({ columns, rows }) {
               backgroundColor: "grey.50",
             }}
           >
-            <TableTotalsBar moneyTotals={moneyTotals} />
             <TableContainer
               sx={{
                 overflow: "auto",
@@ -740,28 +731,61 @@ function TableBlock({ columns, rows }) {
   );
 }
 
-function ListBlock({ style, items }) {
+// Insights-style lists carry a parallel `severity` array aligned by index:
+// info (neutral) | positive | negative | warning (amber/red — needs attention).
+const SEVERITY_TONES = {
+  positive: { text: "success.dark", marker: "#16a34a" },
+  negative: { text: "error.dark", marker: "#dc2626" },
+  warning: { text: "#b45309", marker: "#f59e0b" },
+  info: { text: "text.primary", marker: "#94a3b8" },
+};
+
+function ListBlock({ title, style, items, severity }) {
   if (!Array.isArray(items)) return null;
   const isNumbered = style === "number";
   return (
-    <List dense sx={{ my: 1, ml: 2, listStyleType: isNumbered ? "decimal" : "disc", pl: 1 }}>
-      {items.map((item, i) => (
-        <ListItem
-          key={i}
+    <Box sx={{ my: 1 }}>
+      {title && (
+        <Typography
           sx={{
-            display: "list-item",
-            pl: 0,
-            py: 0.25,
-            color: "text.primary",
-            fontSize: 15,
-            lineHeight: 1.5,
-            "&::marker": isNumbered ? undefined : { color: "var(--primary-btncolor-start)" },
+            fontSize: 12,
+            fontWeight: 600,
+            color: "text.secondary",
+            textTransform: "capitalize",
+            letterSpacing: "0.4px",
+            mb: 0.5,
           }}
         >
-          <ListItemText primary={item} />
-        </ListItem>
-      ))}
-    </List>
+          {title}
+        </Typography>
+      )}
+      <List dense sx={{ ml: 2, listStyleType: isNumbered ? "decimal" : "disc", pl: 1 }}>
+        {items.map((item, i) => {
+          const tone = SEVERITY_TONES[severity?.[i]];
+          return (
+            <ListItem
+              key={i}
+              sx={{
+                display: "list-item",
+                pl: 0,
+                py: 0.25,
+                color: tone?.text || "text.primary",
+                fontSize: 15,
+                lineHeight: 1.5,
+                "&::marker": isNumbered
+                  ? undefined
+                  : { color: tone?.marker || "var(--primary-btncolor-start)" },
+              }}
+            >
+              <ListItemText
+                primary={item}
+                primaryTypographyProps={{ fontSize: 14, fontWeight: tone ? 500 : 400 }}
+              />
+            </ListItem>
+          );
+        })}
+      </List>
+    </Box>
   );
 }
 
@@ -939,7 +963,7 @@ function ChartBlock({ chart_type, x_key, series }) {
           label: (ctx) => {
             const label = ctx.dataset.label || "";
             const value = ctx.parsed[useHorizontalBar ? "x" : "y"];
-            return `${label}: ${formatCurrency(value)}`;
+            return `${label}: ${formatPlainNumber(value)}`;
           },
         },
       },
@@ -996,7 +1020,7 @@ function ChartBlock({ chart_type, x_key, series }) {
             const label = ctx.label || "";
             const value = ctx.parsed;
             const pct = totalValue > 0 ? ((Math.abs(value) / totalValue) * 100).toFixed(2) : "0";
-            return `${label}: ${formatCurrency(value)} (${pct}%)`;
+            return `${label}: ${formatPlainNumber(value)} (${pct}%)`;
           },
         },
       },
@@ -1189,7 +1213,13 @@ function ErrorBlock({ content }) {
   );
 }
 
-function ClarifyBlock({ content }) {
+function ClarifyBlock({ content, options, suggestions, blocking, onSuggestionClick, onAction }) {
+  const [resolved, setResolved] = useState(null);
+  const opts = Array.isArray(options) && options.length
+    ? options
+    : (Array.isArray(suggestions) ? suggestions : []).map((s) => ({
+        label: typeof s === "string" ? s : s?.label || s?.text || "",
+      }));
   return (
     <Box
       sx={{
@@ -1197,7 +1227,8 @@ function ClarifyBlock({ content }) {
         px: 1.5,
         py: 1.25,
         backgroundColor: (theme) => alpha(theme.palette.info.main, 0.06),
-        border: "1px solid", borderColor: "info.light",
+        border: "1px solid",
+        borderColor: blocking && !resolved ? "#c4b5fd" : "info.light",
         borderRadius: "14px",
         fontSize: 14,
         lineHeight: 1.6,
@@ -1226,17 +1257,110 @@ function ClarifyBlock({ content }) {
       >
         ?
       </Box>
-      <Box>
-        <Box component="span" sx={{ fontWeight: 600 }}>Need more info: </Box>
-        {content}
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box>
+          <Box component="span" sx={{ fontWeight: 600 }}>Need more info: </Box>
+          {content}
+        </Box>
+        {resolved ? (
+          <Box sx={{ mt: 1 }}>
+            <ResolvedChip label={resolved} />
+          </Box>
+        ) : (
+          opts.length > 0 && (
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
+              {opts.map((opt, i) =>
+                opt?.label ? (
+                  <Button
+                    key={i}
+                    size="small"
+                    onClick={() =>
+                      setResolved(dispatchOption(opt, { onSuggestionClick, onAction }))
+                    }
+                    sx={optionPillSx}
+                  >
+                    {opt.label}
+                  </Button>
+                ) : null
+              )}
+            </Box>
+          )
+        )}
       </Box>
     </Box>
   );
 }
 
+// Resolve a clickable option: the canonical `action` object wins over the
+// legacy `message`/label text. `send_message` posts its payload as a normal
+// question (no pending state needed); `client` actions run locally; other
+// server actions go through /v1/chat/action. Returns the transcript label.
+const dispatchOption = (opt, { onSuggestionClick, onAction } = {}) => {
+  const action = opt?.action;
+  const fallbackText = opt?.message || opt?.label || "";
+  const display = action?.display || opt?.label || fallbackText;
+  if (!action) {
+    if (fallbackText) onSuggestionClick?.(fallbackText);
+    return display;
+  }
+  if (action.handler === "client") {
+    const url = action.payload?.url;
+    if (url) window.open(String(url), "_blank", "noopener,noreferrer");
+    return display;
+  }
+  if (action.type === "send_message") {
+    onSuggestionClick?.(action.payload?.message || display);
+    return display;
+  }
+  onAction?.(action);
+  return display;
+};
+
+// Green "✓ choice" chip shown in place of a widget once it's been answered.
+function ResolvedChip({ label }) {
+  return (
+    <Chip
+      size="small"
+      icon={<Check size={13} />}
+      label={label}
+      sx={{
+        height: 26,
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: "success.dark",
+        backgroundColor: "#f0fdf4",
+        border: "1px solid",
+        borderColor: "#bbf7d0",
+        "& .MuiChip-icon": { color: "inherit", ml: 1 },
+        "& .MuiChip-label": { px: 1 },
+      }}
+    />
+  );
+}
+
+// Lavender pill shared by choice_input / clarify / suggestions options.
+const optionPillSx = {
+  textTransform: "none",
+  fontSize: 12.5,
+  fontWeight: 500,
+  color: "var(--primary-btncolor-start)",
+  backgroundColor: "#f5f3ff",
+  border: "1px solid #e9e0ff",
+  borderRadius: "16px",
+  padding: "5px 14px",
+  boxShadow: "none",
+  width: "fit-content",
+  "&:hover": {
+    backgroundColor: "#ede8ff",
+    boxShadow: "none",
+  },
+};
+
 // Clarification prompt — the API asks the user to disambiguate a field and
-// provides options; clicking one sends its `message` back as a new question.
-function ChoiceInputBlock({ title, content, options, onSuggestionClick }) {
+// provides options. Prefer option.action (/v1/chat/action) over the legacy
+// message string; after a click the widget collapses to a resolved chip.
+function ChoiceInputBlock({ title, content, options, blocking, onSuggestionClick, onAction }) {
+  const [resolved, setResolved] = useState(null);
   const list = Array.isArray(options) ? options : [];
   return (
     <Box
@@ -1245,7 +1369,7 @@ function ChoiceInputBlock({ title, content, options, onSuggestionClick }) {
         p: 1.5,
         backgroundColor: "common.white",
         border: "1px solid",
-        borderColor: "grey.100",
+        borderColor: blocking && !resolved ? "#c4b5fd" : "grey.100",
         boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.05)",
         borderRadius: "14px",
         width: "fit-content",
@@ -1278,76 +1402,291 @@ function ChoiceInputBlock({ title, content, options, onSuggestionClick }) {
           {content}
         </Typography>
       )}
-      {list.length > 0 && (
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.75 }}>
-          {list.map((opt, i) => {
-            const label = opt?.label || opt?.value || "";
-            const message = opt?.message || label;
-            if (!label) return null;
-            return (
-              <Button
-                key={i}
-                size="small"
-                onClick={() => onSuggestionClick?.(message)}
-                sx={{
-                  textTransform: "none",
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  color: "var(--primary-btncolor-start)",
-                  backgroundColor: "#f5f3ff",
-                  border: "1px solid #e9e0ff",
-                  borderRadius: "16px",
-                  padding: "5px 14px",
-                  boxShadow: "none",
-                  width: "fit-content",
-                  "&:hover": {
-                    backgroundColor: "#ede8ff",
-                    boxShadow: "none",
-                  },
-                }}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </Box>
+      {resolved ? (
+        <ResolvedChip label={resolved} />
+      ) : (
+        list.length > 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.75 }}>
+            {list.map((opt, i) => {
+              const label = opt?.label || opt?.value || "";
+              if (!label) return null;
+              return (
+                <Button
+                  key={i}
+                  size="small"
+                  onClick={() =>
+                    setResolved(dispatchOption(opt, { onSuggestionClick, onAction }))
+                  }
+                  sx={optionPillSx}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+          </Box>
+        )
       )}
     </Box>
   );
 }
 
-function SuggestionsBlock({ items, onSuggestionClick }) {
-  const list = Array.isArray(items) ? items : [];
+// Date-range prompt — presets + two date inputs. Preferred path POSTs the
+// merged submit_action payload to /v1/chat/action; the fallback fills the
+// submit_message_template and sends it as a normal chat message.
+function DateRangeInputBlock({
+  title,
+  content,
+  presets,
+  submit_label,
+  submit_message_template,
+  submit_action,
+  blocking,
+  onSuggestionClick,
+  onAction,
+}) {
+  const [startDate, setStartDate] = useState(null); // dayjs | null
+  const [endDate, setEndDate] = useState(null);
+  const [resolved, setResolved] = useState(null);
+  const presetList = Array.isArray(presets) ? presets : [];
+
+  const fillTemplate = (tpl, sd, ed) =>
+    String(tpl || "")
+      .replace("{start_date}", sd)
+      .replace("{end_date}", ed);
+
+  const handlePreset = (preset) => {
+    if (resolved) return;
+    const label = preset?.label || preset?.value || "";
+    if (submit_action && onAction) {
+      onAction({
+        ...submit_action,
+        payload: { ...(submit_action.payload || {}), preset: preset.value },
+        display: label,
+      });
+    } else {
+      onSuggestionClick?.(label);
+    }
+    setResolved(label);
+  };
+
+  const handleApply = () => {
+    if (resolved || !startDate || !endDate) return;
+    const sd = startDate.format("YYYY-MM-DD");
+    const ed = endDate.format("YYYY-MM-DD");
+    const template = submit_action?.display || submit_message_template;
+    const display = fillTemplate(template, sd, ed) || `${sd} to ${ed}`;
+    if (submit_action && onAction) {
+      onAction({
+        ...submit_action,
+        payload: {
+          ...(submit_action.payload || {}),
+          start_date: sd,
+          end_date: ed,
+        },
+        display,
+      });
+    } else {
+      onSuggestionClick?.(display);
+    }
+    setResolved(display);
+  };
+
+  const pickerFieldProps = {
+    size: "small",
+    sx: {
+      width: 148,
+      "& .MuiInputBase-input": { fontSize: 13, fontWeight: 500 },
+      "& .MuiOutlinedInput-root": {
+        borderRadius: "12px",
+        backgroundColor: "#f5f3ff",
+        transition: "all 0.2s ease",
+        "& fieldset": { borderColor: "#e9e0ff" },
+        "&:hover fieldset": { borderColor: "#c4b5fd" },
+        "&.Mui-focused fieldset": {
+          borderColor: "var(--primary-btncolor-start)",
+          borderWidth: 1,
+        },
+      },
+      "& .MuiInputAdornment-root .MuiIconButton-root": {
+        color: "var(--primary-btncolor-start)",
+        p: 0.5,
+        mr: -0.25,
+        "&:hover": { backgroundColor: "#ede8ff" },
+      },
+    },
+  };
+
+  // Themed calendar popover — rounded paper, purple selected day,
+  // lavender today ring, matching the chat's soft-radius language.
+  const pickerPopperProps = {
+    sx: {
+      "& .MuiPaper-root": {
+        borderRadius: "14px",
+        border: "1px solid #e9e0ff",
+        boxShadow: "0 8px 24px rgba(15,23,42,0.12), 0 2px 8px rgba(100,0,184,0.08)",
+        overflow: "hidden",
+      },
+      "& .MuiPickersCalendarHeader-root": { px: 1.5, mt: 0.5 },
+      "& .MuiPickersCalendarHeader-label": {
+        fontSize: 13.5,
+        fontWeight: 600,
+        color: "text.primary",
+      },
+      "& .MuiPickersArrowSwitcher-button, & .MuiPickersCalendarHeader-switchViewButton": {
+        color: "var(--primary-btncolor-start)",
+      },
+      "& .MuiDayCalendar-weekDayLabel": {
+        fontSize: 11,
+        fontWeight: 600,
+        color: "text.secondary",
+      },
+      "& .MuiPickersDay-root": {
+        fontSize: 12.5,
+        borderRadius: "10px",
+        transition: "all 0.15s ease",
+        "&:hover": { backgroundColor: "#ede8ff" },
+        "&.Mui-selected": {
+          backgroundColor: "var(--primary-btncolor-start)",
+          color: "common.white",
+          fontWeight: 600,
+          "&:hover, &:focus": { backgroundColor: "#8d0096" },
+        },
+        "&.MuiPickersDay-today": {
+          border: "1px solid #c4b5fd",
+          "&:not(.Mui-selected)": { borderColor: "#c4b5fd" },
+        },
+      },
+    },
+  };
+
+  // LocalizationProvider is scoped here — the chat drawer sits outside
+  // MainReport's provider tree, so the pickers need their own context.
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <Box
+      sx={{
+        my: 1,
+        p: 1.5,
+        backgroundColor: "common.white",
+        border: "1px solid",
+        borderColor: blocking && !resolved ? "#c4b5fd" : "grey.100",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.05)",
+        borderRadius: "14px",
+        width: "fit-content",
+        maxWidth: "100%",
+      }}
+    >
+      {title && (
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "text.secondary",
+            textTransform: "capitalize",
+            letterSpacing: "0.4px",
+            mb: 0.5,
+          }}
+        >
+          {title}
+        </Typography>
+      )}
+      {content && (
+        <Typography sx={{ fontSize: 13.5, lineHeight: 1.5, color: "text.primary", mb: 1.25 }}>
+          {content}
+        </Typography>
+      )}
+      {resolved ? (
+        <ResolvedChip label={resolved} />
+      ) : (
+        <>
+          {presetList.length > 0 && (
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1.25 }}>
+              {presetList.map((p, i) => (
+                <Button
+                  key={i}
+                  size="small"
+                  onClick={() => handlePreset(p)}
+                  sx={optionPillSx}
+                >
+                  {p.label || p.value}
+                </Button>
+              ))}
+            </Box>
+          )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            <DatePicker
+              value={startDate}
+              onChange={(v) => setStartDate(v)}
+              maxDate={endDate || undefined}
+              format="DD-MM-YYYY"
+              slotProps={{ textField: pickerFieldProps, popper: pickerPopperProps }}
+            />
+            <Typography component="span" sx={{ fontSize: 12, color: "text.secondary" }}>
+              to
+            </Typography>
+            <DatePicker
+              value={endDate}
+              onChange={(v) => setEndDate(v)}
+              minDate={startDate || undefined}
+              format="DD-MM-YYYY"
+              slotProps={{ textField: pickerFieldProps, popper: pickerPopperProps }}
+            />
+            <Button
+              size="small"
+              variant="contained"
+              disabled={!startDate || !endDate}
+              onClick={handleApply}
+              sx={{
+                textTransform: "none",
+                fontSize: 12.5,
+                fontWeight: 500,
+                color: "common.white",
+                background: "var(--primary-btncolor)",
+                borderRadius: "16px",
+                px: 1.75,
+                boxShadow: "none",
+                "&:hover": { opacity: 0.9, boxShadow: "none" },
+                "&.Mui-disabled": {
+                  backgroundColor: "grey.300",
+                  backgroundImage: "none",
+                  color: "grey.600",
+                },
+              }}
+            >
+              {submit_label || "Apply"}
+            </Button>
+          </Box>
+        </>
+      )}
+    </Box>
+    </LocalizationProvider>
+  );
+}
+
+function SuggestionsBlock({ items, options, onSuggestionClick, onAction }) {
+  // `options` (with canonical actions) wins over the legacy `items` strings.
+  const list =
+    Array.isArray(options) && options.length
+      ? options
+      : (Array.isArray(items) ? items : []).map((item) => ({
+          label:
+            typeof item === "string" ? item : item?.text || item?.label || "",
+        }));
   if (!list.length) return null;
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, my: 1 }}>
-      {list.map((item, i) => {
-        const text = typeof item === "string" ? item : item?.text || item?.label || "";
-        if (!text) return null;
-        return (
+      {list.map((opt, i) =>
+        opt?.label ? (
           <Button
             key={i}
             size="small"
-            onClick={() => onSuggestionClick?.(text)}
-            sx={{
-              textTransform: "none",
-              fontSize: 12.5,
-              color: "var(--primary-btncolor-start)",
-              backgroundColor: "#f5f3ff",
-              border: "1px solid #e9e0ff",
-              borderRadius: "16px",
-              padding: "5px 12px",
-              boxShadow: "none",
-              "&:hover": {
-                backgroundColor: "#ede8ff",
-                boxShadow: "none",
-              },
-            }}
+            onClick={() => dispatchOption(opt, { onSuggestionClick, onAction })}
+            sx={optionPillSx}
           >
-            {text}
+            {opt.label}
           </Button>
-        );
-      })}
+        ) : null
+      )}
     </Box>
   );
 }
@@ -1439,6 +1778,109 @@ function AssumptionBlock({ content }) {
   );
 }
 
+// Named slice of a larger result — same table chrome, with a small title.
+function BreakdownBlock({ title, columns, rows }) {
+  return (
+    <>
+      {title && (
+        <Typography
+          sx={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: "text.secondary",
+            textTransform: "capitalize",
+            letterSpacing: "0.4px",
+            mt: 1.25,
+          }}
+        >
+          {title}
+        </Typography>
+      )}
+      <TableBlock columns={columns} rows={rows} />
+    </>
+  );
+}
+
+// Normalize every terms variant the API may send:
+// {"ctw": "Carat Total Weight"} | [{"term","definition"}] | [{"ctw":"..."}]
+// | ["ctw: Carat Total Weight"] — plus items/entries as field-name fallbacks.
+const normalizeGlossaryTerms = (block) => {
+  const t = block?.terms ?? block?.items ?? block?.entries;
+  if (t && !Array.isArray(t) && typeof t === "object") {
+    return Object.entries(t);
+  }
+  if (Array.isArray(t)) {
+    return t.flatMap((item) => {
+      if (item && typeof item === "object") {
+        if (item.term != null || item.definition != null) {
+          return [[String(item.term ?? ""), String(item.definition ?? "")]];
+        }
+        return Object.entries(item);
+      }
+      const s = String(item ?? "");
+      const idx = s.indexOf(":");
+      return idx > -1
+        ? [[s.slice(0, idx).trim(), s.slice(idx + 1).trim()]]
+        : [[s, ""]];
+    });
+  }
+  return [];
+};
+
+function GlossaryBlock(props) {
+  const { title } = props;
+  const entries = normalizeGlossaryTerms(props);
+  if (!entries.length) {
+    // Nothing parseable — show the raw content rather than render nothing.
+    return props.content ? <TextBlock content={props.content} /> : null;
+  }
+  return (
+    <Box
+      sx={{
+        my: 1,
+        p: 1.5,
+        backgroundColor: "common.white",
+        border: "1px solid",
+        borderColor: "grey.100",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.05)",
+        borderRadius: "14px",
+        width: "fit-content",
+        maxWidth: "100%",
+      }}
+    >
+      {title && (
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "text.secondary",
+            textTransform: "capitalize",
+            letterSpacing: "0.4px",
+            mb: 0.75,
+          }}
+        >
+          {title}
+        </Typography>
+      )}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        {entries.map(([term, def]) => (
+          <Box key={term} sx={{ display: "flex", gap: 1, alignItems: "baseline" }}>
+            <Typography
+              component="span"
+              sx={{ fontSize: 12.5, fontWeight: 600, color: "text.primary", whiteSpace: "nowrap" }}
+            >
+              {term}
+            </Typography>
+            <Typography component="span" sx={{ fontSize: 12.5, color: "text.secondary" }}>
+              {def}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
 function SourcesBlock({ items }) {
   const list = (Array.isArray(items) ? items : []).filter(Boolean);
   if (!list.length) return null;
@@ -1471,14 +1913,25 @@ const BLOCK_COMPONENTS = {
   error: ErrorBlock,
   clarify: ClarifyBlock,
   choice_input: ChoiceInputBlock,
+  date_range_input: DateRangeInputBlock,
   suggestions: SuggestionsBlock,
+  breakdown: BreakdownBlock,
+  glossary: GlossaryBlock,
   download: DownloadBlock,
   sources: SourcesBlock,
   period: PeriodBlock,
   assumption: AssumptionBlock,
 };
 
-export default function ChatBlockRenderer({ blocks, onSuggestionClick }) {
+// Interactive block types that receive the click handlers.
+const INTERACTIVE_TYPES = new Set([
+  "suggestions",
+  "choice_input",
+  "clarify",
+  "date_range_input",
+]);
+
+export default function ChatBlockRenderer({ blocks, onSuggestionClick, onAction }) {
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return <ErrorBlock content="No response received." />;
   }
@@ -1490,8 +1943,9 @@ export default function ChatBlockRenderer({ blocks, onSuggestionClick }) {
   );
   const visibleBlocks = blocks.filter(
     (b) =>
-      b?.type !== "metric" ||
-      (!hasTable && !metricCardValues.has(b?.raw_value))
+      b?.type !== "glossary" &&
+      (b?.type !== "metric" ||
+        (!hasTable && !metricCardValues.has(b?.raw_value)))
   );
 
   return (
@@ -1499,14 +1953,21 @@ export default function ChatBlockRenderer({ blocks, onSuggestionClick }) {
       {visibleBlocks.map((rawBlock, idx) => {
         // Fix any mojibake (e.g. "â¹" → "₹") in every string field.
         const block = sanitizeBlock(rawBlock);
-        const Component = BLOCK_COMPONENTS[block?.type];
-        if (!Component) return null;
+        let Component = BLOCK_COMPONENTS[block?.type];
+        // Unknown block type → fall back to its text content per the spec.
+        if (!Component) {
+          const fallbackText = block?.content ?? block?.value;
+          if (typeof fallbackText !== "string" || !fallbackText) return null;
+          return <TextBlock key={idx} content={fallbackText} />;
+        }
         try {
           return (
             <Component
               key={idx}
               {...block}
-              {...(block?.type === "suggestions" || block?.type === "choice_input" ? { onSuggestionClick } : {})}
+              {...(INTERACTIVE_TYPES.has(block?.type)
+                ? { onSuggestionClick, onAction }
+                : {})}
             />
           );
         } catch {

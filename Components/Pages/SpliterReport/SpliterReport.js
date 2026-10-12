@@ -110,7 +110,10 @@ export default function SpliterReport({
   onSearchFilter,
   reportsExcelRights,
   reportAlertData,
-  CustomizeUserFirstPanelData
+  CustomizeUserFirstPanelData,
+  IsSearchBySingleValue,
+  searchBySingleValue,
+  popupOnClose,
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [spData, setSpData] = useState(null);
@@ -141,6 +144,9 @@ export default function SpliterReport({
   const savedWidths = useRef(spliterReportSecondPanel ? [18, 18] : [18]);
   const COLLAPSED_W = 38;
   const [clearAllDataSignal, setClearAllDataSignal] = useState(0);
+  const isSearchByValue =
+    IsSearchBySingleValue === true ||
+    String(IsSearchBySingleValue).toLowerCase() === "true";
 
   // ─── NEW: active second-panel field (first or second option) ──────────────
   // "first"  → use spliterReportSecondPanel  (e.g. "Department")
@@ -254,10 +260,26 @@ export default function SpliterReport({
           ...(filters.FilterValue && { FilterValue: filters.FilterValue }),
           ...(ServerFilterHeader && { ServerFilterHeader }),
           ...(ServerFilterValue && { ServerFilterValue }),
+          ...(isSearchByValue && searchBySingleValue && {
+            IsSearchBySingleValue: searchBySingleValue,
+          }),
         }),
         f: "DynamicReport ( data )",
       };
       const response = await ReportCallApi(body, spNumber);
+
+      // search-by-single-value gate: no records -> go back to the search box
+      if (
+        isSearchByValue &&
+        (response?.rd?.[0]?.stat == 0 ||
+          response?.rd?.[0]?.stat == 2 ||
+          !(response?.rd3?.length > 0))
+      ) {
+        setIsLoading(false);
+        onBack?.();
+        return;
+      }
+
       setSpData(response);
       setDropdownFilteredRd3(null);
       setFirstPanelFilterValue("");
@@ -1363,7 +1385,7 @@ export default function SpliterReport({
             OtherKeyData={filteredReportData || spData}
             masterData={masterData}
             onBack={onBack}
-            showBackErrow={largeData}
+            showBackErrow={largeData || isSearchByValue}
             filteredValue={filteredValue}
             spNumber={spNumber}
             onSearchFilter={fetchReportData}
@@ -1385,6 +1407,7 @@ export default function SpliterReport({
             reportsExcelRights={reportsExcelRights}
             clearAllDataSignal={clearAllDataSignal}
             reportAlertData={reportAlertData}
+            popupOnClose={popupOnClose}
           />
         </div>
       </Box>

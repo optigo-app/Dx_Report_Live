@@ -73,6 +73,12 @@
   padding: 20px;
 }
 
+.grid-print-total-row td {
+  font-weight: 700;
+  background-color: #f0f0f5;
+  border-top: 2px solid #999;
+}
+
 @media print {
   @page {
     margin: 8mm;
@@ -111,6 +117,10 @@
 
   .grid-print-table thead {
     display: table-header-group;
+  }
+
+  .grid-print-table tfoot {
+    display: table-footer-group;
   }
 
   .grid-print-table tbody tr {

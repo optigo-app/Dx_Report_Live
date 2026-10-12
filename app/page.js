@@ -29,17 +29,17 @@ export default function Page() {
 
 // find . -mindepth 1 -delete
 
-// Dxreport - beta - 6006 - 29   
-// npm run build && pm2 restart 29 && pm2 save 
-
-// Dxreport - live - 6010  - 26  
-// npm run build && pm2 restart 26 && pm2 save 
+// Dxreport - beta - 6006 - 33   
+// npm run build && pm2 restart 33 && pm2 save 
 
 // LIVE BETA :-       5020
 // LIVE LIVE :-       5021
-
 
 // R76 - 5008
 // R76BETA - 5009
 // R76LIVE - 5012
 // R77BETA - 5015
+
+
+// exec sp_Generate_DynamicReport_MasterPatch_beta
+// @pageid=18362

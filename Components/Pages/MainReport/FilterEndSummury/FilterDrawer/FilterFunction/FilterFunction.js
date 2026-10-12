@@ -24,8 +24,10 @@ export const renderFilterOld = (col, draftFilters, setDraftFilters, setFiltersSh
                                 setDraftFilters(prev => ({ ...prev, [col.FieldName]: value }));
                                 setFiltersShowDraf(prev => ({ ...prev, [col.headerNamesingle]: value }));
                             }}
-                            InputLabelProps={{ style: { fontFamily: "Poppins, sans-serif" } }}
-                            InputProps={{ style: { height: 40, fontSize: 16 } }}
+                            slotProps={{
+                                inputLabel: { style: { fontFamily: "Poppins, sans-serif" } },
+                                input: { style: { height: 40, fontSize: 16 } },
+                            }}
                             sx={{
                                 "& .MuiInputLabel-root": { top: "-5px" },
                                 "& .MuiInputLabel-root.Mui-focused": { top: "0px" },

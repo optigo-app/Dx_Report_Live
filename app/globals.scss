@@ -8,6 +8,18 @@ body {
   font-family: inherit;
 }
 
+// .my-card-title {
+//   font-family: var(--font-google-sans), sans-serif;
+// }
+
+.MuiDataGrid-root,
+.MuiDataGrid-cell,
+.MuiDataGrid-columnHeaders,
+.MuiDataGrid-columnHeader,
+.MuiDataGrid-columnHeaderTitle {
+  font-family: var(--font-geist), sans-serif !important;
+}
+
 h1,
 h2,
 h3,
@@ -74,3 +86,40 @@ button {
     left: 120%;
   }
 }
+
+
+
+::-webkit-scrollbar-track
+{
+	background-color: transparent !important;
+}
+
+::-webkit-scrollbar
+{
+	width: 6px;
+	background-color: transparent !important;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb
+{
+	background-color: #97979741 !important;
+}
+
+
+    /* Horizontal scrollbar height only */
+    *::-webkit-scrollbar:horizontal {
+      height: 6px; 
+    }
+
+    *::-webkit-scrollbar-track:horizontal {
+      background: transparent !important;
+    }
+
+  
+
+    *::-webkit-scrollbar-thumb:horizontal {
+      background:#97979741 !important;
+      border-radius: 14px;
+      }
+    

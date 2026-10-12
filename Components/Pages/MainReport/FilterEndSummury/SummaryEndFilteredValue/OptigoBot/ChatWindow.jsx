@@ -14,18 +14,10 @@ import {
   Square,
   ChevronDown,
   Plus,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import { useChatbot } from "./useChatbot";
-import {
-  isSoundEnabled,
-  setSoundEnabled,
-  playSend,
-  playReceive,
-  playError,
-} from "./sounds";
+import { playSend, playReceive, playError } from "./sounds";
 import fetchSuggestedQuestions from "@/API/LLMApi/optigoSuggestedQuestions";
 
 const PREMADE_QUESTIONS_MASTER = [
@@ -67,6 +59,7 @@ export default function ChatWindow({ onClose }) {
     messages,
     isLoading,
     sendMessage,
+    sendAction,
     resetChat,
     cancelRequest,
     sessionId,
@@ -95,15 +88,9 @@ export default function ChatWindow({ onClose }) {
       return "";
     }
   });
-  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
   const scrollRef = useRef(null);
-
-  const toggleSound = () => {
-    setSoundOn((prev) => {
-      setSoundEnabled(!prev);
-      return !prev;
-    });
-  };
+  const inputRef = useRef(null);
+  const wasLoadingRef = useRef(false);
 
   // Report-aware suggested questions from the API; URL-based list is the fallback.
   useEffect(() => {
@@ -136,6 +123,11 @@ export default function ChatWindow({ onClose }) {
         else playReceive();
       }
     }
+    // Response finished → hand focus back to the input.
+    if (wasLoadingRef.current && !isLoading) {
+      inputRef.current?.focus();
+    }
+    wasLoadingRef.current = isLoading;
   }, [messages, isLoading]);
 
   // Show a "scroll to bottom" pill when the user has scrolled up.
@@ -248,19 +240,6 @@ export default function ChatWindow({ onClose }) {
           </Box>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
-          <Tooltip title={soundOn ? "Mute sounds" : "Unmute sounds"}>
-            <IconButton
-              onClick={toggleSound}
-              size="small"
-              sx={{
-                color: soundOn ? "var(--primary-btncolor-start)" : "text.disabled",
-                transition: "all 0.2s ease",
-                "&:hover": { backgroundColor: "#f5f3ff" },
-              }}
-            >
-              {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            </IconButton>
-          </Tooltip>
           <Tooltip title="New chat">
             <IconButton
               onClick={handleNewChat}
@@ -389,6 +368,7 @@ export default function ChatWindow({ onClose }) {
                   blocks={msg.blocks}
                   isLoading={false}
                   onSuggestionClick={handleSend}
+                  onAction={sendAction}
                   raw={msg.raw}
                   sessionId={sessionId}
                   onRegenerate={handleRegenerate}
@@ -402,37 +382,33 @@ export default function ChatWindow({ onClose }) {
         </Box>
 
         {showScrollPill && (
-          <Box
+          <IconButton
             onClick={scrollToBottom}
             sx={{
               position: "absolute",
-              bottom: 8,
+              bottom: 10,
               left: "50%",
               transform: "translateX(-50%)",
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: "16px",
-              backgroundColor: "grey.900",
-              color: "common.white",
-              fontSize: 11.5,
-              fontWeight: 500,
-              cursor: "pointer",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              backgroundColor: "common.white",
+              border: "1px solid",
+              borderColor: "divider",
+              color: "text.secondary",
+              boxShadow: "0 4px 12px rgba(15,23,42,0.15)",
               zIndex: 5,
               transition: "all 0.2s ease",
               "&:hover": {
-                backgroundColor: "grey.800",
-                transform: "translateX(-50%) translateY(-2px)",
-                boxShadow: "0 6px 20px rgba(0,0,0,0.24)",
+                backgroundColor: "grey.50",
+                color: "text.primary",
+                transform: "translateX(-50%) translateY(-1px)",
+                boxShadow: "0 6px 16px rgba(15,23,42,0.2)",
               },
             }}
           >
-            <ChevronDown size={13} />
-            Latest
-          </Box>
+            <ChevronDown size={18} />
+          </IconButton>
         )}
       </Box>
 
@@ -457,6 +433,7 @@ export default function ChatWindow({ onClose }) {
             placeholder="Ask Optigo AI"
             fullWidth
             multiline
+            inputRef={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}

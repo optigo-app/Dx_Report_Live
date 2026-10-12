@@ -102,12 +102,16 @@ export default function ChatMessage({
   blocks,
   isLoading,
   onSuggestionClick,
+  onAction,
   raw,
   sessionId,
   onRegenerate,
 }) {
   const isBot = role === "assistant";
-  const showActions = isBot && !isLoading && raw && !raw.error;
+  // Clarify prompts aren't completed report results — no copy/regenerate/
+  // feedback row on them.
+  const showActions =
+    isBot && !isLoading && raw && !raw.error && raw?.status !== "clarify";
 
   // --- Bot message: avatar on its own row, content below ---
   if (isBot) {
@@ -127,7 +131,7 @@ export default function ChatMessage({
             <TypingIndicator />
           ) : (
             <>
-              <ChatBlockRenderer blocks={blocks} onSuggestionClick={onSuggestionClick} />
+              <ChatBlockRenderer blocks={blocks} onSuggestionClick={onSuggestionClick} onAction={onAction} />
               {showActions && (
                 <MessageActions
                   sessionId={sessionId}

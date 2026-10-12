@@ -135,7 +135,7 @@ const PanelCard = ({ label, selected, onClick, summary = {} }) => {
                   }
                   arrow
                   placement="top"
-                  TransitionComponent={Zoom}
+                  slots={{ transition: Zoom }}
                   enterDelay={120}
                   leaveDelay={50}
                   slotProps={{

@@ -17,7 +17,7 @@ const MultiReportPage = lazy(() =>
   import("@/Components/Pages/MultiReport/MultiReportPage")
 );
 
-export default function RouterContent({ newReportId, popupParamiter }) {
+export default function RouterContent({ newReportId, popupParamiter, popupOnClose }) {
   const searchParams = useSearchParams();
   const urlPid = searchParams.get("pid");
   const pid = newReportId || urlPid;
@@ -38,6 +38,7 @@ export default function RouterContent({ newReportId, popupParamiter }) {
   const [CustomizeUserFirstPanelData, setCustomizeUserFirstPanelData] = useState();
   const [spliterReportFirstPanel, setSpliterReportFirstPanel] = useState();
   const [datefilterServerSide, setDatefilterServerSide] = useState();
+  const [IsSearchBySingleValue, setIsSearchBySingleValue] = useState();
   const [authActionDropdownMaster, setAuthActionDropdownMaster] = useState();
   const [spliterReportFirstPanelFilter, setSpliterReportFirstPanelFilter] = useState();
   const [spliterReportSecondPanelSecondoption, setSpliterReportSecondPanelSecondoption] = useState();
@@ -202,6 +203,7 @@ export default function RouterContent({ newReportId, popupParamiter }) {
           setSpliterReportAllDataButton(data?.SpliterReportAllDataButton);
           setIsPrintColumn(data?.IsPrintColumn);
           setIsShowPreFilterModal(data?.isShowPreFilterModal);
+          setIsSearchBySingleValue(data?.IsSearchBySingleValue);
           setIsPrintColumnData(data?.MainPrintColumn);
           setOtherPrintOptionShow(data?.otherPrintOptionShow);
           setSpliterReportSecondPanelShowAll(data?.SpliterSecondPanelAll);
@@ -317,9 +319,11 @@ export default function RouterContent({ newReportId, popupParamiter }) {
         reportsExcelRights={reportsExcelRights}
         datefilterServerSide={datefilterServerSide}
         popupParamiter={popupParamiter}
+        popupOnClose={popupOnClose}
         reportAlertData={reportAlertData}
         isShowPreFilterModal={isShowPreFilterModal}
         CustomizeUserFirstPanelData={CustomizeUserFirstPanelData}
+        IsSearchBySingleValue={IsSearchBySingleValue}
      />
     </Suspense>
   );

@@ -1,7 +1,7 @@
 // Local/dev hostnames hit the local LLM server; everything else uses production.
 const isLocal =
   typeof window !== "undefined" &&
-  ["localhost", "127.0.0.1", "nzen", "dxreport.web"].includes(
+  ["localhost", "127.0.0.1"].includes(
     window.location.hostname
   );
 

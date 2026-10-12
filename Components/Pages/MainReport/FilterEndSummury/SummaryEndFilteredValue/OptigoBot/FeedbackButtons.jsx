@@ -17,10 +17,10 @@ import submitFeedback from "@/API/LLMApi/optigoFeedback";
 
 // Reason chips shown in the feedback dialog — aligned with the QA taxonomy.
 const DOWNVOTE_REASONS = [
-  { id: "offensive_unsafe", label: "Offensive / Unsafe" },
-  { id: "not_factually_correct", label: "Not factually correct" },
   { id: "didnt_follow_instructions", label: "Didn't follow instructions" },
+  { id: "not_factually_correct", label: "Not factually correct" },
   { id: "personalization_issue", label: "Personalization issue" },
+  { id: "offensive_unsafe", label: "Offensive / Unsafe" },
   { id: "other", label: "Other / More" },
 ];
 

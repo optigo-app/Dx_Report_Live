@@ -6,10 +6,16 @@ import {
   Button,
   Checkbox,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   IconButton,
   Skeleton,
   Snackbar,
+  TextField,
+  Typography,
 } from "@mui/material";
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import CloseIcon from "@mui/icons-material/Close";
@@ -207,9 +213,11 @@ export default function ReportHome({
   reportsExcelRights,
   datefilterServerSide,
   popupParamiter,
+  popupOnClose,
   reportAlertData,
   isShowPreFilterModal,
-  CustomizeUserFirstPanelData
+  CustomizeUserFirstPanelData,
+  IsSearchBySingleValue
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [spData, setSpData] = useState(null);
@@ -234,6 +242,19 @@ export default function ReportHome({
   const [hasMoreData, setHasMoreData] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
+  const [showMoreConfirmOpen, setShowMoreConfirmOpen] = useState(false);
+  const [showMoreTotalCount, setShowMoreTotalCount] = useState(0);
+  // IsSearchBySingleValue gate: flag may arrive as boolean or "True" string
+  const isSearchByValue =
+    IsSearchBySingleValue === true ||
+    String(IsSearchBySingleValue).toLowerCase() === "true";
+  const [showSearchByValuePanel, setShowSearchByValuePanel] = useState(
+    () => isSearchByValue
+  );
+  const [searchByValue, setSearchByValue] = useState("");
+  const searchByValueRef = useRef(""); // committed value sent in GetFullReport
+  const [committedSearchByValue, setCommittedSearchByValue] = useState("");
+  const searchValueRef = useRef(null);
   const lastFiltersRef = useRef({ filters: {}, Master: "0" });
   const preFilterValueRef = useRef("");          // clicked card value ("" = first call)
   const preFilterRef = useRef(null);
@@ -247,6 +268,11 @@ export default function ReportHome({
   useEffect(() => {
     setShowReportMaster(largeData);
   }, [largeData]);
+
+  // if the flag arrives after mount, still show the search gate first
+  useEffect(() => {
+    if (isSearchByValue) setShowSearchByValuePanel(true);
+  }, [isSearchByValue]);
 
   const clearFieldSelections = (fieldKey) => {
     setSelectedValues((prev) => ({
@@ -273,6 +299,8 @@ export default function ReportHome({
     if (spliterReportShow) return;
     if (!reportId && !spNumber) return;
     const fetchData = async () => {
+      // search-by-single-value gate: wait for the user's value first
+      if (isSearchByValue) return;
       setIsLoading(true);
       let AllData = JSON.parse(sessionStorage.getItem("reportVarible"));
       if (largeData) {
@@ -326,7 +354,64 @@ export default function ReportHome({
       }
     };
     fetchData();
-  }, [pid, reportId, largeData]);
+  }, [pid, reportId, largeData, isSearchByValue]);
+
+  // builds the `p` payload + serialized filter strings shared by the
+  // normal report fetch and the Show-More count-check (TableNumber -1)
+  const buildReportParams = (filters, Master, tableNum, preFilterValue) => {
+    let FilterHeader = "";
+    let FilterValue = "";
+    let ServerFilterHeader = "";
+    let ServerFilterValue = "";
+
+    if (Array.isArray(filters) && filters.length > 0) {
+      const normalFilters = filters.filter(
+        (f) => f.FilterHeader && f.FilterValue
+      );
+      const serverFilters = filters.filter(
+        (f) => f.ServerFilterHeader && f.ServerFilterValue
+      );
+
+      FilterHeader = normalFilters.map((f) => f.FilterHeader).join("#");
+      FilterValue = normalFilters.map((f) => f.FilterValue).join("#");
+
+      ServerFilterHeader = serverFilters
+        .map((f) => f.ServerFilterHeader)
+        .join("#");
+      ServerFilterValue = serverFilters
+        .map((f) => f.ServerFilterValue)
+        .join("#");
+    } else if (filters.FilterHeader || filters.ServerFilterHeader) {
+      FilterHeader = filters.FilterHeader || "";
+      FilterValue = filters.FilterValue || "";
+      ServerFilterHeader = filters.ServerFilterHeader || "";
+      ServerFilterValue = filters.ServerFilterValue || "";
+    }
+
+    const p = JSON.stringify({
+      ReportId: reportId,
+      IsMaster: Master,
+      TableNumber: tableNum,
+      ...(isShowPreFilterModal && !preFilterValue && { isShowPreFilterModal: true }),
+      ...(isShowPreFilterModal && !!preFilterValue && { isShowPreFilterValue: preFilterValue }),
+      ...(isSearchByValue && searchByValueRef.current && {
+        IsSearchBySingleValue: searchByValueRef.current,
+      }),
+      ...(FilterHeader && { FilterHeader }),
+      ...(FilterValue && { FilterValue }),
+      ...(ServerFilterHeader && { ServerFilterHeader }),
+      ...(ServerFilterValue && { ServerFilterValue }),
+      ...(filters.FilterStartDate && {
+        FilterStartDate: filters.FilterStartDate,
+      }),
+      ...(filters.FilterEndDate && {
+        FilterEndDate: filters.FilterEndDate,
+      }),
+      ...(popupParamiter && { OpenPopUpReport: true, PopUpParamiter: popupParamiter }),
+    });
+
+    return { p, FilterHeader, FilterValue, ServerFilterHeader, ServerFilterValue };
+  };
 
   const fetchReportData = async (filters = {}, Master, tableNum = 1) => {
     const isLoadMore = tableNum > 1;
@@ -359,34 +444,9 @@ export default function ReportHome({
 
       const responseMaster = await ReportCallApi(masterDataBody, spNumber);
       if (responseMaster) setMasterData(responseMaster);
-      let FilterHeader = "";
-      let FilterValue = "";
-      let ServerFilterHeader = "";
-      let ServerFilterValue = "";
 
-      if (Array.isArray(filters) && filters.length > 0) {
-        const normalFilters = filters.filter(
-          (f) => f.FilterHeader && f.FilterValue
-        );
-        const serverFilters = filters.filter(
-          (f) => f.ServerFilterHeader && f.ServerFilterValue
-        );
-
-        FilterHeader = normalFilters.map((f) => f.FilterHeader).join("#");
-        FilterValue = normalFilters.map((f) => f.FilterValue).join("#");
-
-        ServerFilterHeader = serverFilters
-          .map((f) => f.ServerFilterHeader)
-          .join("#");
-        ServerFilterValue = serverFilters
-          .map((f) => f.ServerFilterValue)
-          .join("#");
-      } else if (filters.FilterHeader || filters.ServerFilterHeader) {
-        FilterHeader = filters.FilterHeader || "";
-        FilterValue = filters.FilterValue || "";
-        ServerFilterHeader = filters.ServerFilterHeader || "";
-        ServerFilterValue = filters.ServerFilterValue || "";
-      }
+      const { p, FilterHeader, FilterValue, ServerFilterHeader, ServerFilterValue } =
+        buildReportParams(filters, Master, tableNum, preFilterValue);
 
       // ----------- Build API Body ----------
       const body = {
@@ -395,26 +455,7 @@ export default function ReportHome({
           appuserid: AllData?.LUId,
           IPAddress: clientIpAddress,
         }),
-        p: JSON.stringify({
-          ReportId: reportId,
-          IsMaster: Master,
-          TableNumber: tableNum,
-          ...(isShowPreFilterModal && !preFilterValue && { isShowPreFilterModal: true }),
-          ...(isShowPreFilterModal && !!preFilterValue && { isShowPreFilterValue: preFilterValue }),
-          ...(FilterHeader && { FilterHeader }),
-          ...(FilterValue && { FilterValue }),
-          ...(ServerFilterHeader && { ServerFilterHeader }),
-          ...(ServerFilterValue && { ServerFilterValue }),
-          ...(filters.FilterStartDate && {
-            FilterStartDate: filters.FilterStartDate,
-            // OpenPopUpReport: true,
-            // PopUpParamiter: 
-          }),
-          ...(filters.FilterEndDate && {
-            FilterEndDate: filters.FilterEndDate,
-          }),
-          ...(popupParamiter && { OpenPopUpReport: true, PopUpParamiter: popupParamiter }),
-        }),
+        p,
         f: "DynamicReport ( data )",
       };
 
@@ -488,6 +529,7 @@ export default function ReportHome({
         setIsPageChanging(false);
         setIsLoading(false);
       }
+      return response;
     } catch (error) {
       console.error("getReportData failed:", error);
       if (isShowPreFilterModal && showPreFilterPanel) preFilterValueRef.current = "";
@@ -495,11 +537,53 @@ export default function ReportHome({
       setLoadingMore(false);
       loadingMoreRef.current = false;
       setIsPageChanging(false);
+      return null;
     }
   };
 
-  const handleShowMoreData = () => {
+  const handleShowMoreData = async () => {
     if (loadingMoreRef.current) return;
+
+    // 1) count-check call (TableNumber: -1) -> rd[0].TotalCount
+    setLoadingMore(true);
+    loadingMoreRef.current = true;
+    try {
+      const { filters, Master } = lastFiltersRef.current;
+      const { p } = buildReportParams(
+        filters,
+        Master,
+        -1,
+        preFilterValueRef.current
+      );
+      let AllData = JSON.parse(sessionStorage.getItem("reportVarible"));
+      const body = {
+        con: JSON.stringify({
+          mode: "GetFullReport",
+          appuserid: AllData?.LUId,
+          IPAddress: clientIpAddress,
+        }),
+        p,
+        f: "DynamicReport ( data )",
+      };
+
+      const response = await ReportCallApi(body, spNumber);
+      const totalCount = response?.rd?.[0]?.TotalCount ?? 0;
+      setShowMoreTotalCount(totalCount);
+      setShowMoreConfirmOpen(true);
+    } catch (err) {
+      console.error("Show more count check failed:", err);
+      setErrorMessageColor("error");
+      setErrorMessage("Failed to check record count");
+      setOpenSnackbar(true);
+    } finally {
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+    }
+  };
+
+  // 2) user confirmed -> fetch the next table of data
+  const handleConfirmShowMore = () => {
+    setShowMoreConfirmOpen(false);
     const nextTable = tableNumber + 1;
     setTableNumber(nextTable);
     const { filters, Master } = lastFiltersRef.current;
@@ -689,7 +773,40 @@ export default function ReportHome({
     fetchReportData(filters || {}, "0");
   };
 
+  const handleSearchByValueSubmit = async () => {
+    if (isLoading) return;
+    const val = searchByValue.trim();
+    searchByValueRef.current = val;
+    setCommittedSearchByValue(val);
+    // keep the gate on screen (isLoading shows the loader) — only switch
+    // to the report once we know data exists
+    const { filters } = lastFiltersRef.current;
+    const response = await fetchReportData(filters || {}, "0");
+
+    const stat = response?.rd?.[0]?.stat;
+    const hasRows =
+      Array.isArray(response?.rd3) && response.rd3.length > 0;
+    if (stat == 0 || stat == 2 || !hasRows) {
+      if (stat != 0 && stat != 2) {
+        // empty result without a known stat -> message it ourselves
+        setErrorMessageColor("warning");
+        setErrorMessage("No Records Found");
+        setOpenSnackbar(true);
+      }
+      return; // stay on the search gate
+    }
+
+    setShowSearchByValuePanel(false);
+  };
+
   const handleBack = () => {
+    if (isSearchByValue) {
+      searchByValueRef.current = "";
+      setCommittedSearchByValue("");
+      setSearchByValue("");
+      setShowSearchByValuePanel(true);
+      return;
+    }
     if (isShowPreFilterModal) {
       preFilterValueRef.current = "";          // Modal flag dobara jayega, Value nahi
       setShowPreFilterPanel(true);
@@ -700,9 +817,23 @@ export default function ReportHome({
     setShowReportMaster(true);
   };
 
-  const preFilterActive = isShowPreFilterModal && showPreFilterPanel;
-  const viewKey = preFilterActive ? "prefilter" : showReportMaster ? "master" : "report";
-  const viewRef = viewKey === "prefilter" ? preFilterRef : viewKey === "master" ? masterRef : reportRef;
+  const searchByValueActive = isSearchByValue && showSearchByValuePanel;
+  const preFilterActive = !searchByValueActive && isShowPreFilterModal && showPreFilterPanel;
+  const viewKey = searchByValueActive
+    ? "searchbyvalue"
+    : preFilterActive
+      ? "prefilter"
+      : showReportMaster
+        ? "master"
+        : "report";
+  const viewRef =
+    viewKey === "searchbyvalue"
+      ? searchValueRef
+      : viewKey === "prefilter"
+        ? preFilterRef
+        : viewKey === "master"
+          ? masterRef
+          : reportRef;
 
   return (
     <DragDropContext onDragEnd={() => { }}>
@@ -714,7 +845,52 @@ export default function ReportHome({
           nodeRef={viewRef}
           style={{ overflow: "hidden" }}
         >
-          {viewKey === "prefilter" ? (
+          {viewKey === "searchbyvalue" ? (
+            <div ref={searchValueRef} className="master-container">
+              <div className="report_master_header">
+                <p className="topHeader_title">{reportName}</p>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: "60vh",
+                  gap: "16px",
+                }}
+              >
+                <TextField
+                  autoFocus
+                  size="small"
+                  placeholder="Enter value to search"
+                  value={searchByValue}
+                  onChange={(e) => setSearchByValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSearchByValueSubmit();
+                  }}
+                  sx={{
+                    width: "320px",
+                    backgroundColor: "#fff",
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "8px",
+                    },
+                  }}
+                />
+                <Button
+                  className="Btn_Show_Report"
+                  variant="contained"
+                  disableElevation
+                  onClick={handleSearchByValueSubmit}
+                  disabled={!searchByValue.trim() || isLoading}
+                  sx={{ minWidth: "140px" }}
+                >
+                  {isLoading ? "Loading..." : "Show Report"}
+                </Button>
+                {isLoading && <CircularProgress size={24} />}
+              </div>
+            </div>
+          ) : viewKey === "prefilter" ? (
             <div ref={preFilterRef} className="master-container">
               <div className="report_master_header">
                 <p className="topHeader_title">{reportName}</p>
@@ -886,7 +1062,11 @@ export default function ReportHome({
                 </div>}
             </div>
           ) : (
-            <div ref={reportRef} className="report-container">
+            <div
+              ref={reportRef}
+              className="report-container"
+              style={{ minHeight: popupOnClose ? "90vh" : "100vh" }}
+            >
               {spliterReportShow
                 ?
                 <SpliterReport
@@ -937,13 +1117,16 @@ export default function ReportHome({
                   reportsExcelRights={reportsExcelRights}
                   reportAlertData={reportAlertData}
                   CustomizeUserFirstPanelData={CustomizeUserFirstPanelData}
+                  IsSearchBySingleValue={IsSearchBySingleValue}
+                  searchBySingleValue={committedSearchByValue}
+                  popupOnClose={popupOnClose}
                 />
                 :
                 <MainReport
                   OtherKeyData={spData}
                   masterData={masterData}
                   onBack={handleBack}
-                  showBackErrow={largeData || isShowPreFilterModal}
+                  showBackErrow={largeData || isShowPreFilterModal || isSearchByValue}
                   filteredValue={filteredValue}
                   spNumber={spNumber}
                   onSearchFilter={fetchReportData}
@@ -980,12 +1163,44 @@ export default function ReportHome({
                   hasMoreData={hasMoreData}
                   loadingMore={loadingMore}
                   reportAlertData={reportAlertData}
+                  IsSearchBySingleValue={IsSearchBySingleValue}
+                  popupOnClose={popupOnClose}
                 />
               }
             </div>
           )}
         </CSSTransition>
       </SwitchTransition>
+
+      <Dialog
+        open={showMoreConfirmOpen}
+        onClose={() => setShowMoreConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Load More Data</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: "14px" }}>
+            Total <strong>{showMoreTotalCount}</strong> records are available.
+            Do you want to load the data?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setShowMoreConfirmOpen(false)}
+            color="inherit"
+          >
+            No
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmShowMore}
+            autoFocus
+          >
+            Yes, Load Data
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={openSnackbar}

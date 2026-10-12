@@ -6,7 +6,7 @@ import React, {
   useRef,
 } from "react";
 import "./Print1JewelleryBook.css";
-import { Box, Card, Stack, Typography } from "@mui/material";
+import { Box, Button, Card, Checkbox, Divider, FormControlLabel, Menu, Stack, Typography } from "@mui/material";
 
 export default function Print1JewelleryBook({
   visibleItemsMain,
@@ -26,6 +26,8 @@ export default function Print1JewelleryBook({
   const [currentPage, setCurrentPage] = useState(1);
   const preloadedImages = useRef(new Set());
   const [hideShowFields, setHideShowFields] = useState({});
+  const [anchorEl, setAnchorEl] = useState(null);
+  const DROPDOWN_THRESHOLD = 10;
 
   // ✅ If any rows are checkbox-selected, restrict to those; otherwise show all
   const effectiveItems = useMemo(() => {
@@ -228,6 +230,48 @@ export default function Print1JewelleryBook({
       (a, b) => Number(a.displayorder || 0) - Number(b.displayorder || 0)
     )
     : [];
+
+  const hideShowOptions = useMemo(
+    () =>
+      sortedPrintData
+        .filter((x) => x.IsHideShowOption)
+        .map((x) => ({
+          key: x.value,
+          label: x.lable
+            ? x.lable.replace(/-$/, "")
+            : x.HideShowLableName || null,
+        }))
+        .filter((x) => x.label),
+    [sortedPrintData]
+  );
+
+  const useDropdown = hideShowOptions.length > DROPDOWN_THRESHOLD;
+
+  const checkedCount = hideShowOptions.filter(
+    (o) => hideShowFields[o.key] ?? true
+  ).length;
+
+  const allChecked = checkedCount === hideShowOptions.length;
+
+  const handleSelectAll = () => {
+    setHideShowFields((prev) => {
+      const next = { ...prev };
+      hideShowOptions.forEach((o) => (next[o.key] = true));
+      return next;
+    });
+  };
+
+  const handleDeselectAll = () => {
+    setHideShowFields((prev) => {
+      const next = { ...prev };
+      hideShowOptions.forEach((o) => (next[o.key] = false));
+      return next;
+    });
+  };
+
+  const handleToggleAll = () => {
+    allChecked ? handleDeselectAll() : handleSelectAll();
+  };
 
   const filteredData = sortedPrintData.filter((item) => {
     if (!item.IsHideShowOption) return true;
@@ -454,31 +498,90 @@ export default function Print1JewelleryBook({
             </label>
 
             {/* Dynamic Hide/Show Fields */}
-            {sortedPrintData
-              ?.filter((x) => x.IsHideShowOption)
-              ?.map((item, index) => {
-                const displayLabel = item.lable
-                  ? item.lable.replace(/-$/, "")
-                  : item.HideShowLableName
-                    ? item.HideShowLableName
-                    : null;
+            {useDropdown ? (
+              <>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={(e) => setAnchorEl(e.currentTarget)}
+                  sx={{ textTransform: "none", height: 28 }}
+                >
+                  More Print Details ({checkedCount}/{hideShowOptions.length}) ▾
+                </Button>
 
-                if (!displayLabel) return null; // neither lable nor HideShowLableName exists
-
-                return (
-                  <label
-                    key={index}
-                    className="inline-flex items-center cursor-pointer gap-2 fil_sec"
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={() => setAnchorEl(null)}
+                  PaperProps={{ style: { maxHeight: 360, minWidth: 220 } }}
+                  MenuListProps={{ dense: true, sx: { py: 0 } }}
+                >
+                  {/* Sticky Select All / Deselect All */}
+                  <Box
+                    sx={{
+                      position: "sticky",
+                      top: 0,
+                      bgcolor: "#fff",
+                      zIndex: 1,
+                      px: 1,
+                      py: 0.5,
+                    }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={hideShowFields[item.value] ?? true}
-                      onChange={() => handleHideShowChange(item.value)}
+                    <FormControlLabel
+                      sx={{ m: 0, width: "100%" }}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={allChecked}
+                          indeterminate={checkedCount > 0 && !allChecked}
+                          onChange={handleToggleAll}
+                        />
+                      }
+                      label="Select All"
                     />
-                    {displayLabel}
-                  </label>
-                );
-              })}
+                    <Box sx={{ display: "flex", gap: 1, pb: 0.5 }}>
+                      <Button size="small" onClick={handleSelectAll} sx={{ textTransform: "none" }}>
+                        Select All
+                      </Button>
+                      <Button size="small" color="error" onClick={handleDeselectAll} sx={{ textTransform: "none" }}>
+                        Deselect All
+                      </Button>
+                    </Box>
+                    <Divider />
+                  </Box>
+
+                  {hideShowOptions.map((o) => (
+                    <Box key={o.key} sx={{ px: 1 }}>
+                      <FormControlLabel
+                        sx={{ m: 0, width: "100%" }}
+                        control={
+                          <Checkbox
+                            size="small"
+                            checked={hideShowFields[o.key] ?? true}
+                            onChange={() => handleHideShowChange(o.key)}
+                          />
+                        }
+                        label={o.label}
+                      />
+                    </Box>
+                  ))}
+                </Menu>
+              </>
+            ) : (
+              hideShowOptions.map((o) => (
+                <label
+                  key={o.key}
+                  className="inline-flex items-center cursor-pointer gap-2 fil_sec"
+                >
+                  <input
+                    type="checkbox"
+                    checked={hideShowFields[o.key] ?? true}
+                    onChange={() => handleHideShowChange(o.key)}
+                  />
+                  {o.label}
+                </label>
+              ))
+            )}
           </div>
 
           <div className="pagination">

@@ -1,17 +1,19 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import sendChatMessage from "@/API/LLMApi/optigoBotChat";
+import sendChatAction from "@/API/LLMApi/optigoChatAction";
 
-const readUserId = () => {
-  if (typeof window === "undefined") return "anonymous";
+const readSessionField = (key) => {
+  if (typeof window === "undefined") return null;
   try {
     const raw = sessionStorage.getItem("reportVarible");
-    if (!raw) return "anonymous";
-    const data = JSON.parse(raw);
-    return data?.LUId || "anonymous";
+    const data = raw ? JSON.parse(raw) : null;
+    return data?.[key] || null;
   } catch {
-    return "anonymous";
+    return null;
   }
 };
+
+const readUserId = () => readSessionField("LUId") || "anonymous";
 
 // Read the `pid` URL search param (e.g. ?pid=18351) used to identify the
 // current report context. When present, source/citation blocks are hidden.
@@ -25,6 +27,86 @@ const readPid = () => {
   }
 };
 
+// Turn a ChatResponse (from /v1/chat or /v1/chat/action) into render blocks.
+// Shared by sendMessage and sendAction — both endpoints return the same shape.
+const buildBotBlocks = (res, latestQuestion, pid) => {
+  // `answer` can be a string or a structured object
+  // { title, value, subtext } — flatten it for fallback/copy.
+  const answerText =
+    typeof res?.answer === "string"
+      ? res.answer
+      : res?.answer && typeof res.answer === "object"
+        ? [res.answer.title, res.answer.value, res.answer.subtext]
+            .filter(Boolean)
+            .join("\n")
+        : null;
+
+  // Build blocks: use res.blocks if present, else fall back to answer.
+  let botBlocks =
+    (Array.isArray(res?.blocks) && res.blocks.length
+      ? res.blocks
+      : res?.error
+        ? [{ type: "error", content: res.error }]
+        : [{ type: "text", content: answerText || "No response received." }]);
+
+  // When pid is present (report context is known), drop "Sources:" text
+  // blocks and `sources` blocks — the source is already implied.
+  if (pid && Array.isArray(botBlocks)) {
+    botBlocks = botBlocks.filter(
+      (b) =>
+        b?.type !== "sources" &&
+        !(b?.type === "text" &&
+          /^sources?\s*:/i.test(String(b.content || "").trim()))
+    );
+  }
+
+  // Drop heading blocks that duplicate the latest user question — the
+  // header already shows it.
+  if (Array.isArray(botBlocks) && botBlocks.length) {
+    const latestQ = (latestQuestion || "").toLowerCase().trim();
+    botBlocks = botBlocks.filter(
+      (b) =>
+        !(b?.type === "heading" &&
+          String(b.content || "").toLowerCase().trim() === latestQ)
+    );
+  }
+
+  // Surface a download link as a dedicated block when the API returns one.
+  const downloadUrl = res?.download_url || res?.actions?.download_url;
+  if (downloadUrl) {
+    botBlocks = [...botBlocks, { type: "download", url: downloadUrl }];
+  }
+
+  // Follow-up suggestions live under actions.suggestions in the new shape.
+  const suggestions = res?.actions?.suggestions;
+  if (Array.isArray(suggestions) && suggestions.length) {
+    botBlocks = [...botBlocks, { type: "suggestions", items: suggestions }];
+  }
+
+  // Flag truncated result sets — spec requires surfacing results_limited.
+  if (res?.metadata?.results_limited) {
+    botBlocks = [
+      ...botBlocks,
+      { type: "assumption", content: "Showing a limited set of results." },
+    ];
+  }
+
+  // Collapse consecutive identical blocks — guards against the backend
+  // emitting the same card (e.g. a report summary metric) twice in a row.
+  if (Array.isArray(botBlocks) && botBlocks.length) {
+    botBlocks = botBlocks.filter((b, i) => {
+      if (i === 0) return true;
+      const prev = botBlocks[i - 1];
+      return !(
+        b?.type === prev?.type &&
+        JSON.stringify(b) === JSON.stringify(prev)
+      );
+    });
+  }
+
+  return { botBlocks, answerText };
+};
+
 export function useChatbot({ responseMode = "wide" } = {}) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,6 +116,7 @@ export function useChatbot({ responseMode = "wide" } = {}) {
   const idCounterRef = useRef(0);
   const abortRef = useRef(null);
   const userIdRef = useRef(readUserId());
+  const yearcodeRef = useRef(readSessionField("YearCode"));
   const pidRef = useRef(readPid());
 
   const nextId = () => ++idCounterRef.current;
@@ -81,6 +164,7 @@ export function useChatbot({ responseMode = "wide" } = {}) {
           {
             question: trimmed,
             user_id: userIdRef.current,
+            yearcode: yearcodeRef.current || undefined,
             session_id: sessionIdRef.current || undefined,
             response_mode: responseMode,
             pid: pidRef.current || undefined,
@@ -97,71 +181,7 @@ export function useChatbot({ responseMode = "wide" } = {}) {
           setSessionId(newSessionId);
         }
 
-        // `answer` can be a string or a structured object
-        // { title, value, subtext } — flatten it for fallback/copy.
-        const answerText =
-          typeof res?.answer === "string"
-            ? res.answer
-            : res?.answer && typeof res.answer === "object"
-              ? [res.answer.title, res.answer.value, res.answer.subtext]
-                  .filter(Boolean)
-                  .join("\n")
-              : null;
-
-        // Build blocks: use res.blocks if present, else fall back to answer.
-        let botBlocks =
-          (Array.isArray(res?.blocks) && res.blocks.length
-            ? res.blocks
-            : res?.error
-              ? [{ type: "error", content: res.error }]
-              : [{ type: "text", content: answerText || "No response received." }]);
-
-        // When pid is present (report context is known), drop "Sources:" text
-        // blocks and `sources` blocks — the source is already implied.
-        if (pidRef.current && Array.isArray(botBlocks)) {
-          botBlocks = botBlocks.filter(
-            (b) =>
-              b?.type !== "sources" &&
-              !(b?.type === "text" &&
-                /^sources?\s*:/i.test(String(b.content || "").trim()))
-          );
-        }
-
-        // Drop heading blocks that duplicate the latest user question — the
-        // header already shows it.
-        if (Array.isArray(botBlocks) && botBlocks.length) {
-          const latestQ = trimmed.toLowerCase().trim();
-          botBlocks = botBlocks.filter(
-            (b) =>
-              !(b?.type === "heading" &&
-                String(b.content || "").toLowerCase().trim() === latestQ)
-          );
-        }
-
-        // Surface a download link as a dedicated block when the API returns one.
-        const downloadUrl = res?.download_url || res?.actions?.download_url;
-        if (downloadUrl) {
-          botBlocks = [...botBlocks, { type: "download", url: downloadUrl }];
-        }
-
-        // Follow-up suggestions live under actions.suggestions in the new shape.
-        const suggestions = res?.actions?.suggestions;
-        if (Array.isArray(suggestions) && suggestions.length) {
-          botBlocks = [...botBlocks, { type: "suggestions", items: suggestions }];
-        }
-
-        // Collapse consecutive identical blocks — guards against the backend
-        // emitting the same card (e.g. a report summary metric) twice in a row.
-        if (Array.isArray(botBlocks) && botBlocks.length) {
-          botBlocks = botBlocks.filter((b, i) => {
-            if (i === 0) return true;
-            const prev = botBlocks[i - 1];
-            return !(
-              b?.type === prev?.type &&
-              JSON.stringify(b) === JSON.stringify(prev)
-            );
-          });
-        }
+        const { botBlocks, answerText } = buildBotBlocks(res, trimmed, pidRef.current);
 
         setMessages((prev) => [
           ...prev,
@@ -207,13 +227,98 @@ export function useChatbot({ responseMode = "wide" } = {}) {
     [isLoading, responseMode]
   );
 
+  // Submit an interactive block's action to /v1/chat/action. The action's
+  // `display` text becomes the user's transcript message; the response is
+  // rendered exactly like a normal /v1/chat response.
+  const sendAction = useCallback(
+    async (action) => {
+      if (!action || isLoading) return;
+      const display =
+        action.display ||
+        action.label ||
+        action.payload?.message ||
+        "Selected an option";
+
+      setLastUserQuestion(display);
+      const userMsg = {
+        id: nextId(),
+        role: "user",
+        blocks: [{ type: "text", content: display }],
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      setIsLoading(true);
+
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+
+      try {
+        const res = await sendChatAction(
+          {
+            session_id: sessionIdRef.current || undefined,
+            action,
+            user_id: userIdRef.current,
+            yearcode: yearcodeRef.current || undefined,
+            pid: pidRef.current || undefined,
+            response_mode: responseMode,
+          },
+          ctrl.signal
+        );
+
+        const newSessionId = res?.session_id || res?.metadata?.session_id;
+        if (newSessionId) {
+          sessionIdRef.current = newSessionId;
+          setSessionId(newSessionId);
+        }
+
+        const { botBlocks, answerText } = buildBotBlocks(res, display, pidRef.current);
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: "assistant",
+            blocks: botBlocks,
+            raw: {
+              ...res,
+              _originalQuestion: display,
+              report_key: res?.report_key || res?.report?.key,
+              answer_text: answerText,
+            },
+          },
+        ]);
+      } catch (err) {
+        if (err?.name === "AbortError") {
+          setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+          return;
+        }
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: "assistant",
+            blocks: [
+              {
+                type: "error",
+                content: "The assistant is temporarily unavailable. Please try again.",
+              },
+            ],
+          },
+        ]);
+      } finally {
+        if (abortRef.current === ctrl) abortRef.current = null;
+        setIsLoading(false);
+      }
+    },
+    [isLoading, responseMode]
+  );
+
   useEffect(() => {
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };
   }, []);
 
-  return { messages, isLoading, sendMessage, resetChat, cancelRequest, sessionId, lastUserQuestion };
+  return { messages, isLoading, sendMessage, sendAction, resetChat, cancelRequest, sessionId, lastUserQuestion };
 };
 
 export default useChatbot;

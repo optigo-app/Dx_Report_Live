@@ -275,22 +275,15 @@ const DualDatePicker = ({
               boxShadow: "0 0 0 2px rgba(24, 24, 27, 0.08)",
             },
           }}
-          readOnly
           slotProps={{
             input: {
+              readOnly: true,
               startAdornment: (
                 <InputAdornment position="start" sx={{ mr: 0.75, display: "flex", alignItems: "center" }}>
                   <CalendarDays size={16} color="#52525b" />
                 </InputAdornment>
               ),
             },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start" sx={{ mr: 0.75, display: "flex", alignItems: "center" }}>
-                <CalendarDays size={16} color="#52525b" />
-              </InputAdornment>
-            ),
           }}
           style={{ width: "100%" }}
         />

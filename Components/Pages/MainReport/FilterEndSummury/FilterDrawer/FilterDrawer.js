@@ -288,15 +288,17 @@ const FilterDrawer = ({
             label={`${col.headerNamesingle}`}
             variant="outlined"
             style={{ width: "100%" }}
-            InputProps={{
-              style: { fontSize: 16, width: "100%" },
-              endAdornment: tempInput[col.headerNamesingle] ? (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={handleClear}>
-                    <X size={16} />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
+            slotProps={{
+              input: {
+                style: { fontSize: 16, width: "100%" },
+                endAdornment: tempInput[col.headerNamesingle] ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClear}>
+                      <X size={16} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              },
             }}
             sx={{
               "& .MuiOutlinedInput-root": {
@@ -415,8 +417,10 @@ const FilterDrawer = ({
             }}
             inputProps={{ min: 0 }}
             style={{ width: "50%" }}
-            InputLabelProps={{ style: { fontFamily: "Poppins, sans-serif" } }}
-            InputProps={{ style: { height: 40, fontSize: 16 } }}
+            slotProps={{
+              inputLabel: { style: { fontFamily: "Poppins, sans-serif" } },
+              input: { style: { height: 40, fontSize: 16 } },
+            }}
             sx={{
               "& .MuiOutlinedInput-root": {
                 height: "40px",
@@ -459,8 +463,10 @@ const FilterDrawer = ({
             }}
             inputProps={{ min: 0 }}
             style={{ width: "50%" }}
-            InputLabelProps={{ style: { fontFamily: "Poppins, sans-serif" } }}
-            InputProps={{ style: { height: 40, fontSize: 16 } }}
+            slotProps={{
+              inputLabel: { style: { fontFamily: "Poppins, sans-serif" } },
+              input: { style: { height: 40, fontSize: 16 } },
+            }}
             sx={{
               "& .MuiOutlinedInput-root": {
                 height: "40px",
@@ -685,8 +691,10 @@ const FilterDrawer = ({
             onKeyDown={handleKeyDown}
             size="small"
             autoComplete="off"
-            InputLabelProps={{ style: { fontFamily: "Poppins, sans-serif" } }}
-            InputProps={{ style: { height: 40, fontSize: 16 } }}
+            slotProps={{
+              inputLabel: { style: { fontFamily: "Poppins, sans-serif" } },
+              input: { style: { height: 40, fontSize: 16 } },
+            }}
           />
 
           {suggestionVisibility[field] && suggestions.length > 0 && (

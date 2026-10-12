@@ -493,7 +493,7 @@ const TagPrint = ({ selectionModel = [], filteredRows = [], gridContainerRef, jo
 
     return (
         <div style={{ display: "flex", alignItems: "center" }}>
-            <Tooltip title="Print Tag" disablePortal PopperProps={{ container: gridContainerRef?.current }}>
+            <Tooltip title="Print Tag" slotProps={{ popper: { container: gridContainerRef?.current } }}>
                 <IconButton
                     onClick={handleOpenTagMenu}
                     sx={{

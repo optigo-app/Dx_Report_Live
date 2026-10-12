@@ -9,6 +9,7 @@ const sendChatMessage = async (req, signal) => {
     pid: req.pid,
     company_code: req.company_code || DEFAULT_COMPANY_CODE,
     user_id: req.user_id,
+    yearcode: req.yearcode,
     session_id: req.session_id,
     response_mode: req.response_mode || DEFAULT_RESPONSE_MODE,
     filters: req.filters,

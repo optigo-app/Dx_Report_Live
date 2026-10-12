@@ -12,6 +12,24 @@ export default function GridPrintView({
 }) {
   const printRows = useMemo(() => (Array.isArray(rows) ? rows : []), [rows]);
 
+  // bottom TOTAL row — sums ColumnType === "Number" columns, same rule as
+  // the Excel export's summaryRow
+  const columnTotals = useMemo(() => {
+    const totals = {};
+    columns.forEach((col) => {
+      if (col?.ColumnType === "Number") totals[col.field] = 0;
+    });
+    printRows.forEach((row) => {
+      columns.forEach((col) => {
+        if (col?.ColumnType === "Number") {
+          const v = Number(row?.[col.field]);
+          if (!isNaN(v)) totals[col.field] += v;
+        }
+      });
+    });
+    return totals;
+  }, [columns, printRows]);
+
   const renderCellSafe = (col, row, rowIndex) => {
     if (col?.field === "sr") return rowIndex + 1;
     if (col?.renderCell) {
@@ -114,6 +132,40 @@ export default function GridPrintView({
               ))
             )}
           </tbody>
+          {printRows.length > 0 && (
+            <tfoot>
+              {(() => {
+                const firstNumIdx = columns.findIndex(
+                  (c) => c?.ColumnType === "Number"
+                );
+                const labelSpan =
+                  firstNumIdx === -1 ? columns.length : Math.max(firstNumIdx, 1);
+                return (
+                  <tr className="grid-print-total-row">
+                    <td colSpan={labelSpan} style={{ textAlign: "right" }}>
+                      Total :
+                    </td>
+                    {columns.slice(labelSpan).map((col, colIndex) => (
+                      <td
+                        key={col?.field || colIndex}
+                        style={{ textAlign: col?.align || "left" }}
+                      >
+                        {col?.ColumnType === "Number"
+                          ? col.ColumnDecimal && col.ColumnDecimal != 0
+                            ? (columnTotals[col.field] ?? 0).toFixed(
+                                Number(col.ColumnDecimal)
+                              )
+                            : Number(
+                                (columnTotals[col.field] ?? 0).toFixed(3)
+                              )
+                          : ""}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })()}
+            </tfoot>
+          )}
         </table>
       </div>
     </div>
