@@ -38,7 +38,10 @@ export default function useCellOverlays() {
     const pageId = data?.colDef?.PopUpPageid;
     const rawParamiter = data?.colDef?.PopUpParamiter;
     let resolvedParamiter = rawParamiter;
-    if (rawParamiter && data?.row) {
+    const trimmed = String(rawParamiter ?? "").trim();
+    // pre-built JSON paramiter is used as-is; only a field-name list is resolved from the row
+    const isJson = trimmed.startsWith("[") || trimmed.startsWith("{");
+    if (rawParamiter && data?.row && !isJson) {
       const fieldNames = String(rawParamiter)
         .split(",")
         .map((f) => f.trim())
@@ -46,10 +49,16 @@ export default function useCellOverlays() {
       if (fieldNames.length > 0) {
         const resolvedObj = {};
         fieldNames.forEach((fieldName) => {
-          resolvedObj[fieldName] = data.row[fieldName] ?? "";
+          const rowKey = Object.keys(data.row).find(
+            (k) => k.toLowerCase() === fieldName.toLowerCase()
+          );
+          resolvedObj[fieldName] = rowKey ? data.row[rowKey] ?? "" : "";
         });
         resolvedParamiter = JSON.stringify([resolvedObj]);
       }
+    }
+    if (!pageId) {
+      console.warn("OpenPopUpReport: missing PopUpPageid for column", data?.colDef?.field);
     }
     setOpenPopupReportid(pageId);
     setOpenPopupReportParam(resolvedParamiter);

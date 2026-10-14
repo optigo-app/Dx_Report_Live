@@ -1963,7 +1963,6 @@ const ReportTopFilterEndAction = ({
     const rows = filteredRows?.filter((r) =>
       selectionModel.includes(r.id)
     );
-
     // Find field names from GridColumnName
     const fieldNames = allColumData
       ?.filter(col =>
@@ -1973,6 +1972,7 @@ const ReportTopFilterEndAction = ({
       )
       ?.map(col => col.FieldName);
 
+
     const actionIds = rows
       ?.map(row =>
         fieldNames
@@ -1981,13 +1981,13 @@ const ReportTopFilterEndAction = ({
           ?.join("/")
       )
       ?.join(",");
-
+    let AllData = JSON.parse(sessionStorage.getItem("reportVarible"));
     const body = {
       con: JSON.stringify({
         id: "",
         mode: "GetPrintConfig",
-        appuserid: "admin@orail.co.in",
-        IPAddress: "192.168.1.47",
+        appuserid: AllData?.LUId,
+        IPAddress: clientIpAddress,
         FormName: data?.FormName
       }),
 
@@ -2355,7 +2355,7 @@ const ReportTopFilterEndAction = ({
                           datefilterServerSide={datefilterServerSide}
                           validDay={
                             masterKeyData?.IsMainDateFilterMonthRestriction == "True" &&
-                            Number(masterKeyData?.IsMainDateFilterMonthRestrictionCount) > 0
+                              Number(masterKeyData?.IsMainDateFilterMonthRestrictionCount) > 0
                               ? Number(masterKeyData.IsMainDateFilterMonthRestrictionCount) * 31
                               : undefined
                           }

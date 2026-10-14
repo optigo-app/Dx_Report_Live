@@ -114,6 +114,7 @@ export default function SpliterReport({
   IsSearchBySingleValue,
   searchBySingleValue,
   popupOnClose,
+  spliterReportWithoutDate
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [spData, setSpData] = useState(null);
@@ -869,9 +870,9 @@ export default function SpliterReport({
           ) : (
             <Box sx={{ display: "flex", flexDirection: "column", height: "100%", px: 1, pt: 1 }}>
               {/* Date picker row */}
-              {!largeData && (
+              {!largeData && (spliterReportAllDataButton || !spliterReportWithoutDate) && (
                 <Box sx={{ display: "flex", gap: 1, mb: 1.25, alignItems: "center", width: "100%" }}>
-                  <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
+                  {!spliterReportWithoutDate && <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
                     <DualDatePicker
                       filterState={filterState}
                       setFilterState={setFilterState}
@@ -880,7 +881,7 @@ export default function SpliterReport({
                       withountDateFilter={false}
                       hideDisplay={filterState.dateRange.startDate?.getFullYear?.() === 1990}
                     />
-                  </Box>
+                  </Box>}
                   {spliterReportAllDataButton && (
                     <Button
                       variant="outlined"

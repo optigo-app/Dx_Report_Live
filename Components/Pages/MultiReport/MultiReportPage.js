@@ -1,8 +1,8 @@
 // Components/Pages/MultiReport/MultiReportPage.js
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { IconButton, Tooltip, Chip } from "@mui/material";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { IconButton, Tooltip, Chip, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
 import {
   Eye,
   X,
@@ -20,12 +20,14 @@ import { useSearchParams } from "next/navigation";
 const MultiReportPage = () => {
   const searchParams = useSearchParams();
   const [reportList, setReportList] = useState([]);
+  console.log('reportList: ', reportList);
   const [loading, setLoading] = useState(false);
   const [openReports, setOpenReports] = useState([]); // { id, pid, name, url }
   const [activeTabId, setActiveTabId] = useState(null);
   const [layout, setLayout] = useState("tabs"); // 'tabs' | 'grid'
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [refreshKey, setRefreshKey] = useState({});
+  const [tabMenu, setTabMenu] = useState(null); // { mouseX, mouseY, report }
   const activeCardRef = useRef(null);
   const pid = searchParams.get("pid");
 
@@ -145,7 +147,7 @@ const MultiReportPage = () => {
   };
 
   const closeReport = (id, e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     const next = openReports.filter((r) => r.id !== id);
     setOpenReports(next);
     if (activeTabId === id) {
@@ -154,9 +156,16 @@ const MultiReportPage = () => {
   };
 
   const refreshReport = (id, e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     setRefreshKey((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
   };
+
+  // right-click on a tab chip → Reload / Close menu
+  const handleTabContextMenu = (e, report) => {
+    e.preventDefault();
+    setTabMenu({ mouseX: e.clientX, mouseY: e.clientY, report });
+  };
+  const closeTabMenu = () => setTabMenu(null);
 
   const openInNewTab = (url, e) => {
     e.stopPropagation();
@@ -164,6 +173,13 @@ const MultiReportPage = () => {
   };
 
   const activeReport = openReports.find((r) => r.id === activeTabId);
+
+  const getOrder = (r) =>
+    Number(r.DisplayOrder ?? r.displayorder ?? r.Displayorder) || Infinity;
+  const sortedReportList = useMemo(
+    () => [...reportList].sort((a, b) => getOrder(a) - getOrder(b)),
+    [reportList]
+  );
 
   return (
     <div className="mrp-page">
@@ -200,7 +216,7 @@ const MultiReportPage = () => {
               {loading ? (
                 <p className="mrp-card-loading">Loading reports...</p>
               ) : (
-                reportList.map((report) => {
+                sortedReportList.map((report) => {
                   const isOpen = openReports.some((r) => r.pid === report.SubPageId);
                   const isActive = isOpen && activeReport?.pid === report.SubPageId;
                   return (
@@ -212,9 +228,7 @@ const MultiReportPage = () => {
                     >
                       <div className="mrp-card-top">
                         <span className="mrp-card-name">{report.SubReportName}</span>
-                        {isOpen && (
-                          <span className="mrp-card-open-badge">Open</span>
-                        )}
+                        {isOpen && <span className="mrp-card-open-badge">Open</span>}
                       </div>
                     </div>
                   );
@@ -237,6 +251,7 @@ const MultiReportPage = () => {
                     key={r.id}
                     className={`mrp-tab-item ${r.id === activeTabId ? "active" : ""}`}
                     onClick={() => setActiveTabId(r.id)}
+                    onContextMenu={(e) => handleTabContextMenu(e, r)}
                   >
                     <span className="mrp-tab-label">{r.name}</span>
                     <Tooltip title="Close">
@@ -275,26 +290,61 @@ const MultiReportPage = () => {
             </div> */}
           </div>
 
+          {/* Tab context menu — right-click a tab for Reload / Close */}
+          <Menu
+            open={Boolean(tabMenu)}
+            onClose={closeTabMenu}
+            anchorReference="anchorPosition"
+            anchorPosition={
+              tabMenu
+                ? { top: tabMenu.mouseY, left: tabMenu.mouseX }
+                : undefined
+            }
+          >
+            <MenuItem
+              onClick={() => {
+                refreshReport(tabMenu?.report?.id);
+                closeTabMenu();
+              }}
+            >
+              <ListItemIcon>
+                <RefreshCw size={15} />
+              </ListItemIcon>
+              <ListItemText>Reload</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                if (tabMenu?.report) closeReport(tabMenu.report.id);
+                closeTabMenu();
+              }}
+            >
+              <ListItemIcon>
+                <X size={15} />
+              </ListItemIcon>
+              <ListItemText>Close</ListItemText>
+            </MenuItem>
+          </Menu>
+
           {layout === "tabs" ? (
             <>
-              {/* Iframe area */}
+              {/* Iframe area — keep ALL open report iframes mounted and hide the
+                  inactive ones, so switching tabs preserves filter/date state */}
               <div className="mrp-iframe-area">
-                {activeReport ? (
-                  <iframe
-                    key={`${activeReport.id}-${refreshKey[activeReport.id] || 0}`}
-                    src={activeReport.url}
-                    title={activeReport.name}
-                    className="mrp-iframe"
-                    allowFullScreen
-                  />
-                ) : (
+                {openReports.length === 0 ? (
                   <div className="mrp-empty-state">
-                    <LayoutGrid size={48} color="#c4c4c4" />
                     <p>Select a report from the left panel to view it here</p>
-                    <p className="mrp-empty-hint">
-                      Use <strong>Grid view</strong> to see multiple reports simultaneously
-                    </p>
                   </div>
+                ) : (
+                  openReports.map((r) => (
+                    <iframe
+                      key={`${r.id}-${refreshKey[r.id] || 0}`}
+                      src={r.url}
+                      title={r.name}
+                      className="mrp-iframe"
+                      style={{ display: r.id === activeTabId ? "block" : "none" }}
+                      allowFullScreen
+                    />
+                  ))
                 )}
               </div>
             </>

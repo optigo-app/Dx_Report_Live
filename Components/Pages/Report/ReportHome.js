@@ -217,7 +217,8 @@ export default function ReportHome({
   reportAlertData,
   isShowPreFilterModal,
   CustomizeUserFirstPanelData,
-  IsSearchBySingleValue
+  IsSearchBySingleValue,
+  spliterReportWithoutDate
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [spData, setSpData] = useState(null);
@@ -1065,7 +1066,7 @@ export default function ReportHome({
             <div
               ref={reportRef}
               className="report-container"
-              style={{ minHeight: popupOnClose ? "90vh" : "100vh" }}
+              style={{ minHeight: popupOnClose ? "95vh" : "100vh" }}
             >
               {spliterReportShow
                 ?
@@ -1120,6 +1121,7 @@ export default function ReportHome({
                   IsSearchBySingleValue={IsSearchBySingleValue}
                   searchBySingleValue={committedSearchByValue}
                   popupOnClose={popupOnClose}
+                  spliterReportWithoutDate={spliterReportWithoutDate}
                 />
                 :
                 <MainReport

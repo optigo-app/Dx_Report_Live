@@ -52,7 +52,8 @@ const GridMain = ({
   reportAlertData,
   isShowPreFilterModal,
   CustomizeUserFirstPanelData,
-  IsSearchBySingleValue
+  IsSearchBySingleValue,
+  spliterReportWithoutDate
 }) => {
   const alertData = reportAlertData?.[0];
   // http://dxreport.web/beta/?CN=UkRTRF8yMDI2MDgxMDA1MTAyOV8xNDFjNzMyZWFjZjA0ODliOWE0Nzk5NzQzZGM2ODgyZQ==&pid=18577&Token=BBB55FCD-7994-F111-B3D1-F875A496BA9D
@@ -194,6 +195,7 @@ const GridMain = ({
       isShowPreFilterModal={isShowPreFilterModal}
       CustomizeUserFirstPanelData={CustomizeUserFirstPanelData}
       IsSearchBySingleValue={IsSearchBySingleValue}
+      spliterReportWithoutDate={spliterReportWithoutDate}
     />
   );
 };

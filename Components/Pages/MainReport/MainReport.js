@@ -397,7 +397,7 @@ export default function MainReport({
     () => ({
       display: "flex",
       flexDirection: "column",
-      height: popupOnClose ? "90dvh" : "100dvh",
+      height: popupOnClose ? "95dvh" : "100dvh",
       position: isExpanded ? "fixed" : "relative",
       top: isExpanded ? 0 : "auto",
       left: isExpanded ? 0 : "auto",

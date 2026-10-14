@@ -151,7 +151,49 @@ export const DecimalCell = ({ value, col }) => {
   );
 };
 
+// flags arrive as boolean true or "True" depending on the API payload
+const isTruthy = (v) => v === true || String(v ?? "").toLowerCase() === "true";
+const isPopupReportCol = (col) => isTruthy(col?.OpenPopUpReport);
+
 /** Hyperlink rendering shared by the priority-colour and default cells. */
+/**
+ * Wraps a typed cell (Date / Decimal / TwoColumn / PositiveNegative) in a
+ * popup-report or href link when the column is so configured — these renderers
+ * return before DefaultCell's own link logic, so the flag is applied here.
+ */
+export const linkableCell = (content, params, col, ctx) => {
+  const linkWrapStyle = {
+    ...linkStyle(col),
+    display: "inline-flex",
+    width: "100%",
+    justifyContent: col?.ColumnAlign || "left",
+  };
+  if (isPopupReportCol(col)) {
+    return (
+      <a
+        target="_blank"
+        rel="noopener noreferrer"
+        style={linkWrapStyle}
+        onClick={() => ctx.openModelNewreport?.(params)}
+      >
+        {content}
+      </a>
+    );
+  }
+  if (isTruthy(col?.HrefLink)) {
+    return (
+      <a
+        target="_blank"
+        rel="noopener noreferrer"
+        style={linkWrapStyle}
+        onClick={() => ctx.handleCellClick?.(params, params?.colDef?.ColId)}
+      >
+        {content}
+      </a>
+    );
+  }
+  return content;
+};
 const HrefContent = ({ params, col, value, onCellClick, linkColor, extraLinkStyle }) =>
   col.HyperlinkShowButton ? (
     <Button style={LINK_BUTTON_STYLE} onClick={() => onCellClick(params, params?.colDef?.ColId)}>
@@ -168,14 +210,30 @@ const HrefContent = ({ params, col, value, onCellClick, linkColor, extraLinkStyl
     </a>
   );
 
-export const PriorityColorCell = ({ params, col, priorityField, colorMaster, onCellClick }) => {
+export const PriorityColorCell = ({
+  params,
+  col,
+  priorityField,
+  colorMaster,
+  onCellClick,
+  onOpenPopupReport,
+}) => {
   const priorityId = priorityField ? params?.row?.[priorityField] : null;
   const priorityObj = colorMaster?.find((x) => x.id == priorityId);
   const bg = priorityObj?.colorcode ?? "inherit";
   const font = priorityObj?.fontcolorcode ?? "inherit";
 
   const innerContent =
-    col.HrefLink == "True" ? (
+    isPopupReportCol(col) ? (
+      <a
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ ...linkStyle(col), color: font !== "inherit" ? font : "blue" }}
+        onClick={() => onOpenPopupReport?.(params)}
+      >
+        {params.value}
+      </a>
+    ) : isTruthy(col.HrefLink) ? (
       <HrefContent
         params={params}
         col={col}
@@ -218,15 +276,7 @@ export const DefaultCell = ({ params, col, onCellClick, onOpenPopupReport }) => 
   const displayValue = params.value;
 
   const content =
-    col.HrefLink == "True" ? (
-      <HrefContent
-        params={params}
-        col={col}
-        value={displayValue}
-        onCellClick={onCellClick}
-        linkColor="blue"
-      />
-    ) : col.OpenPopUpReport == true ? (
+    isPopupReportCol(col) ? (
       <a
         target="_blank"
         rel="noopener noreferrer"
@@ -235,6 +285,14 @@ export const DefaultCell = ({ params, col, onCellClick, onOpenPopupReport }) => 
       >
         {displayValue}
       </a>
+    ) : isTruthy(col.HrefLink) ? (
+      <HrefContent
+        params={params}
+        col={col}
+        value={displayValue}
+        onCellClick={onCellClick}
+        linkColor="blue"
+      />
     ) : (
       <span>{displayValue}</span>
     );

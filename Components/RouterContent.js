@@ -61,6 +61,7 @@ export default function RouterContent({ newReportId, popupParamiter, popupOnClos
   const [spliterReportMonthRestiction, setSpliterReportMonthRestiction] = useState();
   const [otherSpliterSideData1, setOtherSpliterSideData1] = useState();
   const [otherSpliterSideData2, setOtherSpliterSideData2] = useState();
+  const [spliterReportWithoutDate, setSpliterReportWithoutDate] = useState();
   const [currencyMaster, setCurrencyMaster] = useState();
   const [printMasterData, setPrintMasterData] = useState();
   const [dateOptions, setDateOptions] = useState();
@@ -214,6 +215,7 @@ export default function RouterContent({ newReportId, popupParamiter, popupOnClos
           setDefaultShowAllData(data?.deafultShowAllData);
           setOtherSpliterSideData1(JSON?.parse(data.otherSpliterSideData1));
           setOtherSpliterSideData2(JSON.parse(data.otherSpliterSideData2));
+          setSpliterReportWithoutDate(data?.SpliterReportWithoutDate)
           setImageViewData(JSON.parse(data.ImageDataArray));
           setPrintViewData(JSON.parse(data.PrintDataArray));
           setSummuaryViewData(JSON.parse(data.SummaryFormulaArray));
@@ -324,6 +326,7 @@ export default function RouterContent({ newReportId, popupParamiter, popupOnClos
         isShowPreFilterModal={isShowPreFilterModal}
         CustomizeUserFirstPanelData={CustomizeUserFirstPanelData}
         IsSearchBySingleValue={IsSearchBySingleValue}
+        spliterReportWithoutDate={spliterReportWithoutDate}
      />
     </Suspense>
   );

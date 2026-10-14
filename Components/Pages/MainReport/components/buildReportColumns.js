@@ -15,6 +15,7 @@ import {
   getSafeImageSrc,
   hasTwoColumnData,
   ImageCell,
+  linkableCell,
   PositiveNegativeCell,
   PrintMenuCell,
   PriorityColorCell,
@@ -77,7 +78,7 @@ const renderDataCell = (params, col, ctx) => {
   }
 
   if (col.ColumnType === "Date") {
-    return <DateCell value={params.value} col={col} />;
+    return linkableCell(<DateCell value={params.value} col={col} />, params, col, ctx);
   }
 
   if (col?.ImageColumn === "True") {
@@ -89,15 +90,20 @@ const renderDataCell = (params, col, ctx) => {
   }
 
   if (col?.IsPositiveNagativeColor === "True") {
-    return <PositiveNegativeCell value={params.value} col={col} />;
+    return linkableCell(
+      <PositiveNegativeCell value={params.value} col={col} />,
+      params,
+      col,
+      ctx,
+    );
   }
 
   if (hasTwoColumnData(col)) {
-    return <TwoColumnCell params={params} col={col} />;
+    return linkableCell(<TwoColumnCell params={params} col={col} />, params, col, ctx);
   }
 
   if (col?.ColumnDecimal && col?.ColumnDecimal != 0) {
-    return <DecimalCell value={params.value} col={col} />;
+    return linkableCell(<DecimalCell value={params.value} col={col} />, params, col, ctx);
   }
 
   if (col?.PriorityColorColumn == "True") {
@@ -108,6 +114,7 @@ const renderDataCell = (params, col, ctx) => {
         priorityField={ctx.priorityField}
         colorMaster={ctx.colorMaster}
         onCellClick={ctx.handleCellClick}
+        onOpenPopupReport={ctx.openModelNewreport}
       />
     );
   }
